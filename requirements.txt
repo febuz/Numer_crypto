@@ -1,0 +1,15 @@
+numerapi>=2.16.0
+pandas>=1.5.3
+pyspark>=3.1.2
+h2o>=3.46.0
+h2o-pysparkling>=3.1.0
+cloudpickle==2.2.1
+pyarrow>=13.0.0
+matplotlib>=3.7.0
+scikit-learn>=1.0.2
+xgboost>=1.6.2
+python-dotenv>=1.0.0
+numpy>=1.23.5
+requests>=2.32.0
+tabulate>=0.9.0
+scipy>=1.15.0
