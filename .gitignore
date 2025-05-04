@@ -1,5 +1,19 @@
+
 # Environment variables
 .env
+
+# Gitignore file for Numerai Crypto project
+
+# Environment variables and secrets
+.env
+*.env
+.env.*
+!.env.example
+
+# Google OAuth credentials
+client_secrets.json
+credentials.json
+token.json
 
 # Python
 __pycache__/
@@ -55,7 +69,14 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual Environment
+venv/
+ENV/
+
+# IDE files
 .idea/
 .vscode/
 *.swp
