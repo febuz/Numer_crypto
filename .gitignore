@@ -1,3 +1,7 @@
+
+# Environment variables
+.env
+
 # Gitignore file for Numerai Crypto project
 
 # Environment variables and secrets
@@ -33,6 +37,38 @@ var/
 .installed.cfg
 *.egg
 
+# Jupyter
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+*.ipynb
+!Data_retrieval_crypto_yiedl.ipynb
+!cryptos_KISS.ipynb
+
+# Data files
+*.csv
+*.parquet
+*.h5
+*.json
+
+# Model files
+*.pickle
+*.h2o
+*.h5
+*.pkl
+
+# Logs
+logs/
+*.log
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -46,6 +82,11 @@ ENV/
 *.swp
 *.swo
 
-# OS specific files
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
