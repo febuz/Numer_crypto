@@ -1,15 +1,45 @@
-numerapi>=2.16.0
-pandas>=1.5.3
-pyspark>=3.1.2
-h2o>=3.46.0
-h2o-pysparkling>=3.1.0
-cloudpickle==2.2.1
-pyarrow>=13.0.0
-matplotlib>=3.7.0
-scikit-learn>=1.0.2
-xgboost>=1.6.2
-python-dotenv>=1.0.0
-numpy>=1.23.5
-requests>=2.32.0
-tabulate>=0.9.0
-scipy>=1.15.0
+# Updated requirements: 2025-05-04
+# Core packages
+numerapi>=2.16.0             # For Numerai API access
+pyspark==3.5.0               # Apache Spark Python API
+py4j==0.10.9.7               # Required by PySpark
+polars>=0.19.13              # Polars DataFrames
+h2o==3.46.0.6                # H2O ML library (exact version for Sparkling Water compatibility)
+pysparkling>=0.6.0           # Basic Sparkling Water interface
+cloudpickle==2.2.1           # For serialization
+pyarrow>=13.0.0              # Arrow interface for data processing
+matplotlib>=3.7.0            # For visualization
+scikit-learn>=1.0.2          # ML utilities
+python-dotenv>=1.0.0         # Environment variable management
+numpy>=1.23.5                # Numerical computations
+requests>=2.32.0             # HTTP client
+tabulate>=0.9.0              # Table formatting
+scipy>=1.15.0                # Scientific computing
+psutil>=5.9.0                # System monitoring
+
+# GPU Monitoring and utilities
+nvidia-ml-py>=11.0.0         # For NVIDIA GPU monitoring
+py3nvml>=0.2.7               # Additional NVIDIA utilities
+GPUtil>=1.4.0                # GPU utility library
+
+# GPU-accelerated ML (specific versions for compatibility)
+xgboost==3.0.0               # XGBoost with GPU support
+lightgbm==4.6.0              # LightGBM with GPU support
+
+# Dependencies for test visualization
+pandas>=2.0.0                # Data manipulation library
+joblib>=1.2.0                # Parallel computing tools
+
+# Note: The following packages should be installed via conda
+# See setup_ubuntu_24.04_gpu.sh for conda installation instructions
+
+# RAPIDS Ecosystem - GPU acceleration for data processing (conda install)
+# cudf                       # GPU DataFrame library (pandas equivalent) 
+# cuml                       # GPU ML algorithms (scikit-learn equivalent)
+# cugraph                    # GPU graph algorithms
+# cuspatial                  # GPU geospatial operations
+# cupy                       # GPU array library (numpy equivalent)
+# dask-cuda                  # GPU task scheduling with Dask
+
+# RAPIDS integration with Spark (conda install)
+# rapids-4-spark             # GPU acceleration for Spark
