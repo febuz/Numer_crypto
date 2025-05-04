@@ -1,10 +1,7 @@
-# Environment variables
-.env
-
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 *.so
 .Python
 env/
@@ -23,49 +20,33 @@ var/
 .installed.cfg
 *.egg
 
-# Jupyter
-.ipynb_checkpoints
-*/.ipynb_checkpoints/*
-*.ipynb
-!Data_retrieval_crypto_yiedl.ipynb
-!cryptos_KISS.ipynb
-
-# Data files
-*.csv
-*.parquet
-*.h5
-*.json
-
-# Model files
-*.pickle
-*.h2o
-*.h5
-*.pkl
-
-# Logs
-logs/
-*.log
-
-# Environments
-.env
-.venv
+# Virtual environments
+venv*/
+*_env/
 env/
-venv/
 ENV/
-env.bak/
-venv.bak/
+gpu_test_env/
+test_env*/
 
-# IDE
+# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Test and build artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.coverage.*
+coverage.xml
+*.cover
+h2ologs/
+reports/
+
+# Project specific
+github_key.pub
+*.ipynb_checkpoints/
