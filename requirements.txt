@@ -1,3 +1,4 @@
+# Updated requirements: 2025-05-04
 # Core packages
 numerapi>=2.16.0             # For Numerai API access
 pyspark==3.5.0               # Apache Spark Python API

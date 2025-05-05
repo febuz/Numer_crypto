@@ -5,6 +5,8 @@
 - Implemented Java 11 vs Java 17 GPU performance comparison test
 - Created multi-GPU test for H2O Sparkling Water
 - Added Ubuntu 24.04 configuration script for RAPIDS, Spark, and H2O
+- Updated requirements.txt with current package versions and compatibility notes
+- Cleaned up repository structure and updated .gitignore configuration
 
 ## Changes Made
 1. **Reorganized test structure**:
@@ -37,3 +39,5 @@
 - Java 17 requires special module options for H2O Sparkling Water
 - Multi-GPU tests use CUDA_VISIBLE_DEVICES to isolate specific GPUs
 - Results are automatically saved as JSON and visualization plots
+- Updated requirements.txt specifies exact versions for critical libraries (XGBoost 3.0.0, LightGBM 4.6.0)
+- Repository now excludes all virtual environment directories and test data from version control
