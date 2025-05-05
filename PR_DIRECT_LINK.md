@@ -1,21 +1,13 @@
-# Pull Request Instructions
+# Direct Link to Create Pull Request
 
-To create a pull request for this branch, please follow these steps:
+Click the link below to go directly to the GitHub interface for creating the pull request:
 
-1. Visit the repository on GitHub: https://github.com/febuz/Numer_crypto
+[Create Pull Request: feature/crypto-analysis ’ main](https://github.com/febuz/Numer_crypto/pull/new/feature/crypto-analysis)
 
-2. Click on the "Pull requests" tab
+## Pull Request Details
 
-3. Click the "New pull request" button
+- **Base branch**: `main`
+- **Compare branch**: `feature/crypto-analysis`
+- **Title**: Clean up redundant files and add multi-GPU support
 
-4. Set "base" to `main` and "compare" to `feature/crypto-analysis`
-
-5. Click "Create pull request"
-
-6. Use the title: "Crypto Analysis GPU Performance Testing and Requirements Update"
-
-7. Copy the contents of PR_DESCRIPTION.md into the pull request description
-
-8. Click "Create pull request" to submit
-
-The PR will merge the latest changes from `feature/crypto-analysis` into `main`.
+Copy the contents of `PR_CLEANUP.md` as the description when creating the pull request.

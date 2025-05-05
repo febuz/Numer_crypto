@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 """
-Multi-GPU Test for H2O Sparkling Water
+Multi-GPU Test for PyTorch
 
-This script tests the ability of H2O Sparkling Water to utilize multiple
-GPUs simultaneously. It creates multiple H2O XGBoost models running on 
-different GPUs and measures the utilization and performance.
+This script demonstrates how to use multiple GPUs in parallel with PyTorch for
+distributed machine learning. It creates synthetic data and trains multiple
+models simultaneously on different GPUs.
 
 Requirements:
 - Multiple NVIDIA GPUs
 - CUDA support
-- H2O Sparkling Water
-- Java 11 or 17
-
-IMPORTANT: This test requires the special environment setup. Run:
-1. cd /home/knight2/repos/Numer_crypto
-2. ./scripts/setup/setup_h2o_sparkling_java17.sh
-3. source h2o_sparkling_java17_env/bin/activate.sparkling
-4. python tests/performance/test_multi_gpu_h2o.py
+- PyTorch with CUDA support
 """
 
 import os
@@ -33,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Check for required dependencies before proceeding
 missing_modules = []
-required_modules = ["numpy", "pandas", "matplotlib", "sklearn", "h2o", "pyspark", "pysparkling"]
+required_modules = ["numpy", "pandas", "matplotlib", "torch", "sklearn"]
 
 for module in required_modules:
     try:
@@ -46,24 +39,22 @@ if missing_modules:
     print("\nERROR: The following required modules are missing:")
     for module in missing_modules:
         print(f"  - {module}")
-    print("\nPlease set up the environment first. Run the following commands:")
-    print("  1. cd /home/knight2/repos/Numer_crypto")
-    print("  2. ./scripts/setup/setup_h2o_sparkling_java17.sh")
-    print("  3. source h2o_sparkling_java17_env/bin/activate.sparkling")
-    print("  4. python tests/performance/test_multi_gpu_h2o.py")
+    print("\nPlease install them using:")
+    print("  pip install " + " ".join(missing_modules))
     sys.exit(1)
 
 # Now that we've checked dependencies, import them
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
 
-# Add project root to path
-script_dir = Path(__file__).resolve().parent
-project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
 
 # GPU monitoring utilities
 def get_gpu_info():
@@ -136,179 +127,126 @@ def create_synthetic_dataset(n_rows=100000, n_features=20, random_seed=42):
     
     return df
 
-def setup_java(java_version=11):
-    """Set up Java environment for testing"""
-    if java_version == 11:
-        java_home = "/usr/lib/jvm/java-11-openjdk-amd64"
-    elif java_version == 17:
-        java_home = "/usr/lib/jvm/java-17-openjdk-amd64"
-    else:
-        raise ValueError(f"Unsupported Java version: {java_version}")
-    
-    # Set environment variables
-    os.environ["JAVA_HOME"] = java_home
-    os.environ["PATH"] = f"{java_home}/bin:{os.environ['PATH']}"
-    
-    # Add Java 17 module options if needed
-    if java_version == 17:
-        os.environ["_JAVA_OPTIONS"] = (
-            "--add-opens=java.base/sun.net.www.protocol.http=ALL-UNNAMED "
-            "--add-opens=java.base/sun.net.www.protocol.https=ALL-UNNAMED "
-            "--add-opens=java.base/sun.net.www.protocol.file=ALL-UNNAMED "
-            "--add-opens=java.base/sun.net.www.protocol.ftp=ALL-UNNAMED "
-            "--add-opens=java.base/sun.net.www.protocol.jar=ALL-UNNAMED "
-            "--add-opens=java.base/java.net=ALL-UNNAMED "
-            "--add-opens=java.base/sun.net=ALL-UNNAMED"
-        )
-    
-    # Verify Java version
-    try:
-        java_version_output = subprocess.check_output(
-            ["java", "-version"], stderr=subprocess.STDOUT, encoding='utf-8'
-        )
-        print(f"Using Java:\n{java_version_output.strip()}")
-        return True
-    except Exception as e:
-        print(f"Error setting up Java {java_version}: {e}")
-        return False
+class NeuralNetwork(nn.Module):
+    """Simple neural network for binary classification"""
+    def __init__(self, input_size, hidden_size=128):
+        super(NeuralNetwork, self).__init__()
+        self.layer1 = nn.Linear(input_size, hidden_size)
+        self.layer2 = nn.Linear(hidden_size, hidden_size // 2)
+        self.layer3 = nn.Linear(hidden_size // 2, 1)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.3)
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, x):
+        x = self.dropout(self.relu(self.layer1(x)))
+        x = self.dropout(self.relu(self.layer2(x)))
+        x = self.sigmoid(self.layer3(x))
+        return x
 
-def train_h2o_on_gpu(gpu_id, data_df, port_offset=0, model_name=None):
-    """Train H2O XGBoost model on specific GPU"""
-    model_name = model_name or f"XGBoost_Model_GPU{gpu_id}"
+def train_pytorch_on_gpu(gpu_id, data_df, model_name=None, batch_size=128, epochs=20):
+    """Train PyTorch model on specific GPU"""
+    model_name = model_name or f"PyTorch_Model_GPU{gpu_id}"
     print(f"\n=== Training {model_name} on GPU {gpu_id} ===")
     
     try:
         # Set specific GPU as visible
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+        torch.cuda.set_device(gpu_id)
+        device = torch.device(f"cuda:{gpu_id}")
         
         # Split data
-        train_df, test_df = train_test_split(data_df, test_size=0.2, random_state=42)
+        feature_cols = [col for col in data_df.columns if col != 'target']
+        X = data_df[feature_cols].values
+        y = data_df['target'].values
         
-        # Import required libraries
-        from pyspark.sql import SparkSession
-        try:
-            import pysparkling
-            print(f"Using pysparkling from {pysparkling.__file__}")
-        except ImportError:
-            print("pysparkling not installed. Falling back to standard H2O (non-sparkling).")
-        from pyspark.sql.types import DoubleType, StructType, StructField
-        from pyspark.ml.feature import VectorAssembler
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
-        # Create Spark session with unique app name and port
-        unique_app_name = f"H2OSparklingGPU_{gpu_id}_{int(time.time())}"
-        unique_port = 54321 + port_offset  # Each instance needs a different port
+        # Convert to torch tensors
+        X_train_tensor = torch.FloatTensor(X_train)
+        y_train_tensor = torch.FloatTensor(y_train).reshape(-1, 1)
+        X_test_tensor = torch.FloatTensor(X_test)
+        y_test_tensor = torch.FloatTensor(y_test).reshape(-1, 1)
         
-        builder = SparkSession.builder \
-            .appName(unique_app_name) \
-            .config("spark.executor.memory", "4g") \
-            .config("spark.driver.memory", "4g") \
-            .config("spark.jars.repositories", "https://h2oai.jfrog.io/artifactory/h2o-releases") \
-            .config("spark.driver.port", str(unique_port)) \
-            .config("spark.ui.port", str(10000 + port_offset))
+        # Create datasets and dataloaders
+        train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         
-        # Add Java module options if using Java 17
-        if "add-opens" in os.environ.get("_JAVA_OPTIONS", ""):
-            java_opts = os.environ["_JAVA_OPTIONS"]
-            builder = builder \
-                .config("spark.driver.extraJavaOptions", java_opts) \
-                .config("spark.executor.extraJavaOptions", java_opts)
+        test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size)
         
-        spark = builder.getOrCreate()
+        # Initialize model
+        input_size = X_train.shape[1]
+        model = NeuralNetwork(input_size=input_size)
+        model.to(device)
         
-        # Initialize H2O with unique port
-        h2o_port = unique_port + 1000
-        try:
-            from pysparkling import H2OContext
-            h2o_conf = pysparkling.H2OConf(spark)
-            h2o_conf.set_internal_port_offset(h2o_port - 54321)
-            h2o_context = H2OContext.getOrCreate(h2o_conf)
-        except Exception as e:
-            print(f"ERROR: Failed to initialize H2O context: {e}")
-            print("\nIMPORTANT: This test requires the PySparkling library.")
-            print("Please run the scripts/setup/setup_h2o_sparkling_java17.sh script first and then use:")
-            print("source h2o_sparkling_java17_env/bin/activate.sparkling")
-            raise e
+        # Define loss function and optimizer
+        criterion = nn.BCELoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
         
-        # Convert pandas DataFrames to Spark DataFrames
-        print(f"Converting data to Spark DataFrame (GPU {gpu_id})...")
-        train_spark = spark.createDataFrame(train_df)
-        test_spark = spark.createDataFrame(test_df)
-        
-        # Prepare features vector
-        feature_cols = [col for col in train_df.columns if col != 'target']
-        assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-        train_spark = assembler.transform(train_spark)
-        test_spark = assembler.transform(test_spark)
-        
-        # Convert to H2O Frame for XGBoost
-        print(f"Converting to H2O Frames (GPU {gpu_id})...")
-        train_h2o = h2o_context.asH2OFrame(train_spark)
-        test_h2o = h2o_context.asH2OFrame(test_spark)
-        
-        # Convert target to categorical for classification
-        train_h2o['target'] = train_h2o['target'].asfactor()
-        test_h2o['target'] = test_h2o['target'].asfactor()
-        
-        # Time the training process
+        # Train the model
         start_time = time.time()
-        
-        # Create and train XGBoost model with this GPU
-        print(f"Training H2O XGBoost on GPU {gpu_id}...")
-        from pysparkling.ml import H2OXGBoostEstimator
-        
-        estimator = H2OXGBoostEstimator(
-            featuresCols=["features"],
-            labelCol="target",
-            tree_method="gpu_hist",
-            gpu_id=0,  # Use 0 because we've set CUDA_VISIBLE_DEVICES to make the chosen GPU appear as 0
-            ntrees=50,
-            max_depth=10,
-            learn_rate=0.1
-        )
-        
-        model = estimator.fit(train_spark)
+        model.train()
+        for epoch in range(epochs):
+            running_loss = 0.0
+            for i, (inputs, labels) in enumerate(train_loader):
+                inputs, labels = inputs.to(device), labels.to(device)
+                
+                # Zero the parameter gradients
+                optimizer.zero_grad()
+                
+                # Forward pass
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                
+                # Backward pass and optimize
+                loss.backward()
+                optimizer.step()
+                
+                running_loss += loss.item() * inputs.size(0)
+            
+            if epoch % 5 == 0 or epoch == epochs - 1:
+                epoch_loss = running_loss / len(train_loader.dataset)
+                print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}")
         
         training_time = time.time() - start_time
         
-        # Evaluate model
-        predictions = model.transform(test_spark)
-        import h2o
-        predictions_h2o = h2o_context.asH2OFrame(predictions)
+        # Evaluate the model
+        model.eval()
+        y_pred = []
         
-        # Get AUC for binary classification
-        from h2o.utils.metrics import Metrics
-        perf = Metrics.make_metrics(
-            predictions_h2o[predictions_h2o.names[-1]], 
-            test_h2o['target'], 
-            'binomial'
-        )
-        auc = perf.auc()
+        with torch.no_grad():
+            for inputs, _ in test_loader:
+                inputs = inputs.to(device)
+                outputs = model(inputs)
+                y_pred.extend(outputs.cpu().numpy())
+        
+        y_pred = np.array(y_pred).flatten()
+        auc = roc_auc_score(y_test, y_pred)
         
         print(f"GPU {gpu_id} Results:")
         print(f"  - Training Time: {training_time:.2f} seconds")
         print(f"  - AUC: {auc:.4f}")
         
-        # Clean up
-        h2o_context.stop()
-        spark.stop()
+        # Save model
+        model_dir = Path('./models/pytorch')
+        model_dir.mkdir(parents=True, exist_ok=True)
+        model_path = model_dir / f"{model_name}_gpu{gpu_id}.pt"
+        torch.save(model.state_dict(), model_path)
+        print(f"Model saved to {model_path}")
         
         return {
             'gpu_id': gpu_id,
             'model_name': model_name,
             'success': True,
             'training_time': training_time,
-            'auc': float(auc)
+            'auc': float(auc),
+            'model_path': str(model_path)
         }
             
     except Exception as e:
         print(f"Error training on GPU {gpu_id}: {e}")
         import traceback
         traceback.print_exc()
-        try:
-            h2o_context.stop()
-            spark.stop()
-        except:
-            pass
         return {
             'gpu_id': gpu_id,
             'model_name': model_name,
@@ -316,7 +254,7 @@ def train_h2o_on_gpu(gpu_id, data_df, port_offset=0, model_name=None):
             'error': str(e)
         }
 
-def plot_multi_gpu_results(results, gpu_metrics, output_dir='../reports'):
+def plot_multi_gpu_results(results, gpu_metrics, output_dir='./reports'):
     """Generate visualizations for multi-GPU test results"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -350,7 +288,7 @@ def plot_multi_gpu_results(results, gpu_metrics, output_dir='../reports'):
                     ha='center', va='bottom')
     
     plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.savefig(f"{output_dir}/multi_gpu_training_times_{timestamp}.png")
+    plt.savefig(f"{output_dir}/multi_gpu_pytorch_training_times_{timestamp}.png")
     
     # 2. GPU utilization over time
     # Plot each GPU's utilization on the same chart with different colors
@@ -375,7 +313,7 @@ def plot_multi_gpu_results(results, gpu_metrics, output_dir='../reports'):
     plt.ylabel('GPU Utilization (%)')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"{output_dir}/multi_gpu_utilization_{timestamp}.png")
+    plt.savefig(f"{output_dir}/multi_gpu_pytorch_utilization_{timestamp}.png")
     
     # 3. Memory usage over time
     plt.figure(figsize=(14, 8))
@@ -398,106 +336,28 @@ def plot_multi_gpu_results(results, gpu_metrics, output_dir='../reports'):
     plt.ylabel('Memory Used (MB)')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"{output_dir}/multi_gpu_memory_{timestamp}.png")
-    
-    # 4. Aggregate metrics (peak utilization, peak memory)
-    peaks = {}
-    for gpu_id, metrics in gpu_metrics.items():
-        if not metrics:
-            continue
-            
-        df = pd.DataFrame(metrics)
-        peaks[gpu_id] = {
-            'peak_util': df['utilization'].max(),
-            'peak_memory': df['memory_used'].max(),
-            'avg_util': df['utilization'].mean(),
-            'avg_memory': df['memory_used'].mean(),
-            'gpu_name': df['name'].iloc[0]
-        }
-    
-    # Plot peak utilization
-    plt.figure(figsize=(12, 6))
-    gpu_ids = list(peaks.keys())
-    peak_utils = [peaks[gpu_id]['peak_util'] for gpu_id in gpu_ids]
-    avg_utils = [peaks[gpu_id]['avg_util'] for gpu_id in gpu_ids]
-    
-    x = np.arange(len(gpu_ids))
-    width = 0.35
-    
-    plt.bar(x - width/2, peak_utils, width, label='Peak Utilization', color='blue')
-    plt.bar(x + width/2, avg_utils, width, label='Average Utilization', color='green')
-    
-    plt.xlabel('GPU ID')
-    plt.ylabel('Utilization (%)')
-    plt.title('Peak vs Average GPU Utilization')
-    plt.xticks(x, gpu_ids)
-    plt.legend()
-    plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.savefig(f"{output_dir}/multi_gpu_peak_utilization_{timestamp}.png")
+    plt.savefig(f"{output_dir}/multi_gpu_pytorch_memory_{timestamp}.png")
     
     print(f"Plots saved to {output_dir}/")
 
 def main():
-    """Main function to run multi-GPU tests"""
-    parser = argparse.ArgumentParser(description='Multi-GPU Test for H2O Sparkling Water')
+    """Main function to run multi-GPU tests with PyTorch"""
+    parser = argparse.ArgumentParser(description='Multi-GPU Test for PyTorch')
     parser.add_argument('--rows', type=int, default=100000, help='Number of rows in the dataset')
     parser.add_argument('--cols', type=int, default=20, help='Number of features in the dataset')
-    parser.add_argument('--java-version', type=int, default=11, choices=[11, 17], help='Java version to use')
-    parser.add_argument('--output-dir', type=str, default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'reports'), help='Output directory for results')
+    parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+    parser.add_argument('--batch-size', type=int, default=128, help='Batch size for training')
+    parser.add_argument('--output-dir', type=str, default='./reports', help='Output directory for results')
     
     args = parser.parse_args()
     
     print("=" * 80)
-    print("MULTI-GPU TEST FOR H2O SPARKLING WATER")
+    print("MULTI-GPU TEST FOR PYTORCH")
     print("=" * 80)
     
-    # Check if the required modules are available
-    missing_modules = []
-    try:
-        import matplotlib
-    except ImportError:
-        missing_modules.append("matplotlib")
-    
-    try:
-        import pyspark
-    except ImportError:
-        missing_modules.append("pyspark")
-    
-    try:
-        import h2o
-    except ImportError:
-        missing_modules.append("h2o")
-    
-    try:
-        import pysparkling
-    except ImportError:
-        missing_modules.append("pysparkling")
-    
-    # If modules are missing, show a helpful error message
-    if missing_modules:
-        print("\nERROR: The following required modules are missing:")
-        for module in missing_modules:
-            print(f"  - {module}")
-        print("\nPlease set up the environment first. Run the following commands:")
-        print("  1. cd /home/knight2/repos/Numer_crypto")
-        print("  2. ./scripts/setup/setup_h2o_sparkling_java17.sh")
-        print("  3. source h2o_sparkling_java17_env/bin/activate.sparkling")
-        print("  4. python tests/performance/test_multi_gpu_h2o.py")
-        return 1
-    
-    # Create reports directory
-    try:
-        if not os.path.exists(args.output_dir):
-            os.makedirs(args.output_dir, exist_ok=True)
-        print(f"Using output directory: {args.output_dir}")
-    except PermissionError:
-        print(f"Warning: Cannot create directory {args.output_dir} due to permission issues.")
-        print("Using current directory for outputs instead.")
-        args.output_dir = os.getcwd()
-    
-    # Set up Java environment
-    if not setup_java(args.java_version):
-        print("Failed to set up Java environment. Exiting.")
+    # Check if CUDA is available
+    if not torch.cuda.is_available():
+        print("CUDA is not available. Exiting.")
         return 1
     
     # Get available GPUs
@@ -505,6 +365,9 @@ def main():
     if not gpus:
         print("No GPUs detected. Exiting.")
         return 1
+    
+    num_gpus = torch.cuda.device_count()
+    print(f"PyTorch can see {num_gpus} GPUs")
     
     print(f"Detected {len(gpus)} GPUs:")
     for gpu in gpus:
@@ -527,7 +390,7 @@ def main():
     
     # Train on all available GPUs in parallel
     print("\n" + "="*80)
-    print(f"TRAINING H2O SPARKLING WATER MODELS ON {len(gpus)} GPUs")
+    print(f"TRAINING PYTORCH MODELS ON {len(gpus)} GPUs")
     print("="*80)
     
     results = []
@@ -540,15 +403,15 @@ def main():
         futures = {}
         for i, gpu in enumerate(gpus):
             gpu_id = gpu['index']
-            model_name = f"XGBoost_Model_GPU{gpu_id}"
-            port_offset = i * 100  # Ensure unique ports
+            model_name = f"PyTorch_Model_GPU{gpu_id}"
             
             future = executor.submit(
-                train_h2o_on_gpu, 
+                train_pytorch_on_gpu, 
                 gpu_id, 
                 data_df, 
-                port_offset, 
-                model_name
+                model_name,
+                args.batch_size,
+                args.epochs
             )
             futures[future] = gpu_id
         
@@ -614,7 +477,7 @@ def main():
     
     # Save detailed results to file
     timestamp = int(time.time())
-    result_file = os.path.join(args.output_dir, f"multi_gpu_test_{timestamp}.json")
+    result_file = os.path.join(args.output_dir, f"multi_gpu_pytorch_{timestamp}.json")
     
     # Prepare metrics for saving (without raw monitoring data)
     metrics_summary = {}
@@ -637,7 +500,7 @@ def main():
         json.dump({
             'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
             'gpu_count': len(gpus),
-            'java_version': args.java_version,
+            'pytorch_visible_devices': num_gpus,
             'results': results,
             'metrics_summary': metrics_summary,
             'test_parameters': vars(args)
