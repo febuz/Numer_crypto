@@ -1,12 +1,12 @@
-# Create Final Cleanup Pull Request
+# Final Pull Request Link
 
-Click the link below to create a pull request for the final cleanup branch:
+To create the pull request, please go to:
 
-[Create Pull Request: cleanup/redundant-files → main](https://github.com/febuz/Numer_crypto/pull/new/cleanup/redundant-files)
+https://github.com/febuz/Numer_crypto/compare/main...cleanup/redundant-files
 
-## Pull Request Details
+Use the following title:
+```
+Clean up redundant files and add feature engineering modules
+```
 
-- **Title**: Remove redundant files from main directory
-- **Base**: main
-- **Compare**: cleanup/redundant-files
-- **Description**: Copy the contents of FINAL_PR_DESCRIPTION.md
+Use the content of `PR_CLEANUP_UPDATED.md` for the description.
