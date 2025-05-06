@@ -1,147 +1,54 @@
 #!/bin/bash
-# Model Comparison Script for Numerai Crypto Competition
-# This script compares multiple models with extensive feature engineering
-# to find the best performing model for crypto prediction
+# This script runs a comprehensive comparison of models for Numerai Crypto
+# with the goal of achieving RMSE < 0.2 using real Yiedl data.
 
 set -e
+LOG_FILE="model_comparison_$(date +%Y%m%d_%H%M%S).log"
+echo "Starting model comparison. Logs will be written to $LOG_FILE"
 
-echo "===================================================="
-echo "NUMERAI CRYPTO MODEL COMPARISON"
-echo "===================================================="
+# Create directories
+mkdir -p data/processed data/submissions models/comparison
 
-# Check for GPU availability
-if command -v nvidia-smi &> /dev/null; then
-    echo "GPU detected:"
-    nvidia-smi -L
-    
-    # Count available GPUs
-    gpu_count=$(nvidia-smi -L | wc -l)
-    echo "Found $gpu_count GPUs"
-    
-    # Create comma-separated list of GPU IDs
-    gpu_ids=$(seq -s, 0 $((gpu_count-1)))
-    echo "Using GPU IDs: $gpu_ids"
+# Step 1: Process Yiedl data if needed
+if [ "$1" != "--skip-processing" ]; then
+  echo "Processing Yiedl data..."
+  python3 scripts/process_yiedl_data.py | tee -a "$LOG_FILE"
 else
-    echo "No GPU detected, using CPU only"
-    gpu_ids=""
+  echo "Skipping data processing step" | tee -a "$LOG_FILE"
 fi
 
-# Set working directory
-cd "$(dirname "$0")"
+# Step 2: Run model comparison script
+echo "Running model comparison with 20+ models..." | tee -a "$LOG_FILE"
+python3 scripts/model_comparison.py | tee -a "$LOG_FILE"
 
-# Create required directories
-mkdir -p data/submissions
-mkdir -p models/comparison
-mkdir -p reports/plots
+# Step 3: Run H2O AutoML for 30 minutes
+echo "Running H2O AutoML for 30 minutes..." | tee -a "$LOG_FILE"
+python3 scripts/h2o_automl_crypto.py --max-runtime 1800 --max-models 50 | tee -a "$LOG_FILE"
 
-# Parse command line arguments
-ram_gb="500"
-time_limit_per_model="720"
-max_features="5000"
-n_samples="100000"
+# Step 4: Run standard model pipeline
+echo "Running standard prediction pipeline..." | tee -a "$LOG_FILE"
+python3 scripts/train_predict_crypto.py | tee -a "$LOG_FILE"
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --ram)
-            ram_gb="$2"
-            shift 2
-            ;;
-        --time-limit)
-            time_limit_per_model="$2"
-            shift 2
-            ;;
-        --features)
-            max_features="$2"
-            shift 2
-            ;;
-        --samples)
-            n_samples="$2"
-            shift 2
-            ;;
-        --no-gpu)
-            gpu_ids=""
-            shift
-            ;;
-        --gpu-ids)
-            gpu_ids="$2"
-            shift 2
-            ;;
-        *)
-            # Unknown option
-            echo "Unknown option: $1"
-            echo "Usage: $0 [--ram GB] [--time-limit SECONDS] [--features COUNT] [--samples COUNT] [--no-gpu] [--gpu-ids IDS]"
-            exit 1
-            ;;
-    esac
-done
-
-# Set timestamp for output files
-timestamp=$(date +"%Y%m%d_%H%M%S")
-output_dir="data/submissions"
-results_file="${output_dir}/model_comparison_results_${timestamp}.json"
-
-# Check if virtual environment exists, if not create it
-if [ ! -d "./venv" ]; then
-    echo "Setting up virtual environment and installing dependencies..."
-    bash scripts/install_requirements.sh
-    
-    # Install additional dependencies for model comparison
-    source ./venv/bin/activate
-    pip install catboost pyarrow fastparquet psutil
-    deactivate
-else
-    echo "Using existing virtual environment."
-    
-    # Ensure additional dependencies are installed
-    source ./venv/bin/activate
-    pip install -q catboost pyarrow fastparquet psutil
-    deactivate
-fi
-
-# Activate virtual environment
-source ./venv/bin/activate
-
-echo "Starting model comparison at $(date)"
-echo "Running with parameters:"
-echo "  - RAM: ${ram_gb}GB"
-echo "  - Time limit per model: ${time_limit_per_model} seconds"
-echo "  - Max features: ${max_features}"
-echo "  - Samples: ${n_samples}"
-echo "  - GPU IDs: ${gpu_ids:-none (CPU mode)}"
+# Summary of results
+echo "================================" | tee -a "$LOG_FILE"
+echo "MODEL COMPARISON SUMMARY" | tee -a "$LOG_FILE"
+echo "================================" | tee -a "$LOG_FILE"
+echo "Submission files generated:" | tee -a "$LOG_FILE"
+find data/submissions -type f -name "*submission*.csv" -mtime -1 | sort | tee -a "$LOG_FILE"
 echo ""
 
-# Run the model comparison script
-python scripts/run_model_comparison.py \
-    --ram "${ram_gb}" \
-    --gpus "${gpu_ids}" \
-    --time-limit "${time_limit_per_model}" \
-    --features "${max_features}" \
-    --output-dir "${output_dir}"
+# Find RMSE values in validation files
+echo "Validation RMSE values:" | tee -a "$LOG_FILE"
+find data/submissions -type f -name "*validation*.json" -mtime -1 -exec sh -c "echo {} && grep -o '\"rmse\": [0-9.]*' {} | head -1" \; | tee -a "$LOG_FILE"
 
-exit_code=$?
+echo "================================" | tee -a "$LOG_FILE"
+echo "Model comparison complete!" | tee -a "$LOG_FILE"
+echo "See external submission directory: /media/knight2/EDB/cryptos/submission/" | tee -a "$LOG_FILE"
 
-echo ""
-echo "===================================================="
-if [[ $exit_code -eq 0 ]]; then
-    echo "MODEL COMPARISON COMPLETE"
+# Check if any submission achieved RMSE < 0.2
+BEST_RMSE=$(find data/submissions -type f -name "*validation*.json" -mtime -1 -exec grep -o '"rmse": [0-9.]*' {} \; | sort -n | head -1 | cut -d':' -f2 | tr -d ' ')
+if (( $(echo "$BEST_RMSE < 0.2" | bc -l) )); then
+  echo "SUCCESS! Achieved RMSE < 0.2 ($BEST_RMSE)" | tee -a "$LOG_FILE"
 else
-    echo "MODEL COMPARISON FAILED WITH EXIT CODE ${exit_code}"
+  echo "Target RMSE < 0.2 not yet achieved. Best RMSE: $BEST_RMSE" | tee -a "$LOG_FILE"
 fi
-echo "===================================================="
-
-if [[ $exit_code -eq 0 && -f "$results_file" ]]; then
-    echo "Results summary:"
-    cat "$results_file" | python -m json.tool
-    
-    echo ""
-    echo "Prediction files generated in $output_dir directory"
-    echo "Model comparison plots saved in reports/plots directory"
-fi
-
-echo ""
-echo "Script completed at $(date)"
-
-# Deactivate virtual environment
-deactivate
-
-exit $exit_code
