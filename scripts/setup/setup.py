@@ -24,7 +24,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/febuz/Numer_crypto",
-    packages=find_packages(include=['scripts', 'utils', 'models', 'config', 'data']),
+    packages=find_packages(include=['scripts', 'utils', 'models', 'config', 'data', 'feature']),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
@@ -36,6 +36,8 @@ setup(
         "console_scripts": [
             "numer-crypto=scripts.run:main",
             "numer-gpu-test=scripts.run_all_gpu_tests:main",
+            "numer-crypto-eda=feature.EDA.exploratory_analysis:main",
+            "numer-crypto-features=feature.feature_engineering.polynomial_features:main",
         ],
     },
 )
