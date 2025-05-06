@@ -61,6 +61,11 @@ coverage.xml
 h2ologs/
 reports/
 
+# Log files
+*.log
+logs/
+*/logs/
+
 # OS
 .DS_Store
 .DS_Store?
@@ -74,3 +79,10 @@ Thumbs.db
 github_key.pub
 **/.claude/settings.local.json
 data/yiedl/yiedl_historical.zip
+data/yiedl/extracted/
+data/submissions/
+
+# Documentation that should be stored externally
+HIGH_MEM_CRYPTO_MODEL.md
+BEST_SUBMISSION.md
+NUMERAI_CRYPTO_ENSEMBLE.md
