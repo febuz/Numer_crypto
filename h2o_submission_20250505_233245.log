@@ -1,0 +1,16 @@
+2025-05-05 23:32:45,014 [INFO] Starting H2O Sparkling Water solution with 1500s time limit
+2025-05-05 23:32:45,014 [INFO] Setting up GPUs: 0,1,2
+2025-05-05 23:32:45,214 [ERROR] Error initializing H2O and Spark: cannot import name 'H2OContext' from 'pysparkling' (/usr/local/lib/python3.12/dist-packages/pysparkling/__init__.py)
+2025-05-05 23:32:45,214 [INFO] Falling back to standalone H2O...
+2025-05-05 23:32:51,519 [INFO] H2O version: 3.46.0.7
+2025-05-05 23:32:51,519 [INFO] Using Spark: False
+2025-05-05 23:32:51,519 [INFO] Loading Yiedl data...
+2025-05-05 23:32:51,520 [INFO] Loading latest data with pandas...
+2025-05-05 23:32:51,521 [ERROR] Error loading latest data: Unable to find a usable engine; tried using: 'pyarrow', 'fastparquet'.
+A suitable version of pyarrow or fastparquet is required for parquet support.
+Trying to import the above resulted in these errors:
+ - Missing optional dependency 'pyarrow'. pyarrow is required for parquet support. Use pip or conda to install pyarrow.
+ - Missing optional dependency 'fastparquet'. fastparquet is required for parquet support. Use pip or conda to install fastparquet.
+2025-05-05 23:32:51,521 [INFO] Extracting data from historical zip...
+2025-05-05 23:32:51,521 [ERROR] Error extracting historical data: File is not a zip file
+2025-05-05 23:32:51,522 [ERROR] Failed to load historical data. Exiting.

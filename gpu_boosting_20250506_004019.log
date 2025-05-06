@@ -1,0 +1,6 @@
+2025-05-06 00:40:20,703 [INFO] Using GPU acceleration (GPU ID: 0, NVIDIA GeForce RTX 3090)
+2025-05-06 00:40:20,703 [INFO] Loading Yiedl data...
+2025-05-06 00:40:21,025 [INFO] Loaded Yiedl data: (10117, 3671)
+2025-05-06 00:40:21,139 [WARNING] No target column found, creating synthetic target
+2025-05-06 00:40:21,394 [INFO] Preparing data for modeling...
+2025-05-06 00:40:21,815 [INFO] Limiting features from 3670 to 1000

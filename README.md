@@ -1,18 +1,40 @@
 # Numer_crypto
 
-Numerai/Numerai Crypto competition prediction models using LGBM, H2O XGBoost, Sparkling Water, and PySpark.
+Numerai/Numerai Crypto competition prediction models using LightGBM, XGBoost, H2O, Sparkling Water, PySpark, and PyTorch.
 
 ## Overview
 
-This project provides tools and models for participating in the Numerai Crypto competition. It leverages various machine learning frameworks, including H2O's XGBoost, PySpark, and Sparkling Water for distributed training and inference.
+This project provides tools and models for participating in the Numerai Crypto competition. It leverages various machine learning frameworks, including LightGBM, XGBoost, H2O, PyTorch LSTM networks, and Sparkling Water for distributed training and inference.
 
 ## Features
 
 - Data retrieval from the Numerai API
-- Model training using H2O XGBoost
+- Model training using multiple frameworks (LightGBM, XGBoost, H2O, PyTorch)
+- GPU acceleration for improved performance
+- High memory utilization (up to 600GB)
 - Distributed processing with PySpark and H2O Sparkling Water
-- Feature importance analysis
+- Feature engineering and selection
+- Ensemble model predictions
+- 20-day ahead forecasting
+- RMSE and hit rate evaluation metrics
 - Prediction generation and submission
+
+## New High Memory GPU-Accelerated Model
+
+The project now includes a high-memory GPU-accelerated model specifically designed for crypto predictions with large datasets. Key features:
+
+- Full utilization of hardware resources (memory and GPUs)
+- Multiple model ensemble (LightGBM, XGBoost, PyTorch LSTM)
+- Feature engineering optimized for crypto time series
+- 20-day ahead forecasting
+- Easy execution via shell script
+
+Run with:
+```bash
+./run_high_mem_crypto_model.sh
+```
+
+For detailed documentation and parameters, see [HIGH_MEM_CRYPTO_MODEL.md](HIGH_MEM_CRYPTO_MODEL.md).
 
 ## Project Structure
 
@@ -20,9 +42,13 @@ This project provides tools and models for participating in the Numerai Crypto c
 numer_crypto/
 ├── config/              # Configuration settings
 ├── data/                # Data retrieval and processing
+│   └── yiedl/           # Yiedl crypto datasets
 ├── models/              # Model implementations
 ├── scripts/             # Command-line scripts
-└── utils/               # Utility functions
+│   ├── high_mem_crypto_model.py  # High memory GPU model implementation
+│   └── install_requirements.sh   # Dependencies installer
+├── utils/               # Utility functions
+└── run_high_mem_crypto_model.sh  # Script to run the high memory model
 ```
 
 ## Installation
@@ -33,18 +59,13 @@ numer_crypto/
    cd numer_crypto
    ```
 
-2. Create a virtual environment:
+2. Run the installation script to create a virtual environment with all dependencies:
    ```bash
-   python -m venv venv
+   bash scripts/install_requirements.sh
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install the package:
-   ```bash
-   pip install -e .
-   ```
-
-4. Set up environment variables:
+3. Set up environment variables:
    ```bash
    cp .env.example .env
    # Edit .env with your Numerai API credentials
@@ -54,38 +75,58 @@ numer_crypto/
 
 - Python 3.8+
 - Java 8+ (required for H2O and Spark)
+- CUDA-compatible GPUs (for GPU acceleration)
+- 16GB+ RAM (600GB+ recommended for high memory model)
 
 ## Usage
 
-### Download Data
+### Standard Models
+
+#### Download Data
 
 ```bash
 python -m numer_crypto.scripts.run --download --tournament crypto
 ```
 
-### Train a Model
+#### Train a Model
 
 ```bash
 python -m numer_crypto.scripts.run --train --tournament crypto
 ```
 
-### Generate Predictions
+#### Generate Predictions
 
 ```bash
 python -m numer_crypto.scripts.run --predict --tournament crypto
 ```
 
-### Submit Predictions
+#### Submit Predictions
 
 ```bash
 python -m numer_crypto.scripts.run --predict --submit --tournament crypto
 ```
 
-### Complete Pipeline
+#### Complete Pipeline
 
 ```bash
 python -m numer_crypto.scripts.run --download --train --predict --submit --tournament crypto
 ```
+
+### High Memory GPU Model
+
+#### Run with Default Settings
+
+```bash
+./run_high_mem_crypto_model.sh
+```
+
+#### Run with Custom Settings
+
+```bash
+./run_high_mem_crypto_model.sh --ram 400 --forecast-days 20 --nn-model --evaluate
+```
+
+For all available options, see the [detailed documentation](HIGH_MEM_CRYPTO_MODEL.md).
 
 ## Configuration
 
@@ -98,6 +139,15 @@ NUMERAI_SECRET_KEY=your_secret_key_here
 
 # External storage configuration
 EXTERNAL_STORAGE_PATH=/path/to/external/storage
+```
+
+## Advanced Usage with H2O Sparkling Water
+
+For H2O Sparkling Water integration, ensure Java 11+ is installed and run:
+
+```bash
+./scripts/setup/setup_h2o_sparkling_java17.sh
+python scripts/test_h2o_sparkling_java17.py
 ```
 
 ## Contributing
@@ -116,4 +166,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - [Numerai](https://numer.ai/) for their cryptocurrency prediction competition
 - [H2O.ai](https://www.h2o.ai/) for their machine learning framework
+- [LightGBM](https://lightgbm.readthedocs.io/) and [XGBoost](https://xgboost.readthedocs.io/) for gradient boosting implementations
+- [PyTorch](https://pytorch.org/) for neural network capabilities
 - [Apache Spark](https://spark.apache.org/) for distributed computing framework

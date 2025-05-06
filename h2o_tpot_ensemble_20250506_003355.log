@@ -1,0 +1,19 @@
+2025-05-06 00:33:57,343 [INFO] Using GPU acceleration with 3 GPUs:
+2025-05-06 00:33:57,343 [INFO]   GPU 0: NVIDIA GeForce RTX 3090
+2025-05-06 00:33:57,343 [INFO]   GPU 1: NVIDIA GeForce RTX 3090
+2025-05-06 00:33:57,343 [INFO]   GPU 2: NVIDIA RTX A5000
+2025-05-06 00:33:57,686 [INFO] Initializing H2O with 8GB memory...
+2025-05-06 00:34:02,422 [INFO] Loading Yiedl data...
+2025-05-06 00:34:02,436 [INFO] Using PyArrow to read parquet
+2025-05-06 00:34:02,748 [INFO] Loaded Yiedl latest data: (10117, 3671)
+2025-05-06 00:34:03,021 [INFO] Loaded Yiedl historical data: (10117, 3671)
+2025-05-06 00:34:03,024 [INFO] Generating synthetic crypto data
+2025-05-06 00:34:03,024 [INFO] Creating synthetic data with 20000 samples for 100 cryptos
+2025-05-06 00:34:07,882 [INFO] Created synthetic training data: (24800, 44)
+2025-05-06 00:34:07,882 [INFO] Created synthetic prediction data: (6200, 44)
+2025-05-06 00:34:07,921 [INFO] Merging Yiedl and Crypto data...
+2025-05-06 00:34:18,058 [INFO] Merged training data: (34917, 3715)
+2025-05-06 00:34:18,058 [INFO] Merged prediction data: (16317, 3715)
+2025-05-06 00:34:18,065 [INFO] Engineering features (poly_degree=2, max_features=1500)...
+2025-05-06 00:34:20,791 [INFO] Starting with 3711 base features
+2025-05-06 00:35:11,568 [INFO] Generated 1325 polynomial features
