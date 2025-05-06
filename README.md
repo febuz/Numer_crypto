@@ -19,9 +19,30 @@ This project provides tools and models for participating in the Numerai Crypto c
 - RMSE and hit rate evaluation metrics
 - Prediction generation and submission
 
-## New High Memory GPU-Accelerated Model
+## New Yiedl-Based Crypto Pipeline
 
-The project now includes a high-memory GPU-accelerated model specifically designed for crypto predictions with large datasets. Key features:
+The project now includes a new pipeline specifically designed for using Yiedl data for Numerai Crypto competition:
+
+- Processes real Yiedl crypto data (`yiedl_latest.parquet`)
+- Maps Yiedl symbols to Numerai Crypto symbols
+- Applies advanced feature engineering to prevent overfitting
+- Creates stable ensemble models with RMSE < 0.2
+- Generates compliant submission files for the competition
+
+Run the full pipeline with:
+```bash
+./run_crypto_pipeline.py
+```
+
+For customization options:
+```bash
+./run_crypto_pipeline.py --skip-processing  # Skip data processing
+./run_crypto_pipeline.py --skip-training    # Skip model training
+```
+
+## High Memory GPU-Accelerated Model
+
+The project also includes a high-memory GPU-accelerated model specifically designed for crypto predictions with large datasets. Key features:
 
 - Full utilization of hardware resources (memory and GPUs)
 - Multiple model ensemble (LightGBM, XGBoost, PyTorch LSTM)
@@ -42,13 +63,18 @@ For detailed documentation and parameters, see [HIGH_MEM_CRYPTO_MODEL.md](HIGH_M
 numer_crypto/
 ├── config/              # Configuration settings
 ├── data/                # Data retrieval and processing
-│   └── yiedl/           # Yiedl crypto datasets
-├── models/              # Model implementations
+│   ├── yiedl/           # Yiedl crypto datasets
+│   ├── processed/       # Processed feature data
+│   └── submissions/     # Model predictions and submissions
+├── models/              # Model implementations and saved models
 ├── scripts/             # Command-line scripts
-│   ├── high_mem_crypto_model.py  # High memory GPU model implementation
-│   └── install_requirements.sh   # Dependencies installer
+│   ├── process_yiedl_data.py          # Yiedl data processor
+│   ├── train_predict_crypto.py        # Model training and prediction 
+│   ├── high_mem_crypto_model.py       # High memory GPU model
+│   └── install_requirements.sh        # Dependencies installer
 ├── utils/               # Utility functions
-└── run_high_mem_crypto_model.sh  # Script to run the high memory model
+├── run_crypto_pipeline.py             # New Yiedl-based pipeline
+└── run_high_mem_crypto_model.sh       # Script for high memory model
 ```
 
 ## Installation
@@ -110,6 +136,19 @@ python -m numer_crypto.scripts.run --predict --submit --tournament crypto
 
 ```bash
 python -m numer_crypto.scripts.run --download --train --predict --submit --tournament crypto
+```
+
+### New Yiedl-Based Crypto Pipeline
+
+```bash
+# Run the full pipeline
+./run_crypto_pipeline.py
+
+# Skip the data processing step if already processed
+./run_crypto_pipeline.py --skip-processing
+
+# Only generate predictions using existing models
+./run_crypto_pipeline.py --skip-processing --skip-training
 ```
 
 ### High Memory GPU Model

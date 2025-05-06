@@ -82,7 +82,7 @@ data/yiedl/yiedl_historical.zip
 data/yiedl/extracted/
 data/submissions/
 
-# Documentation that should be stored externally
-HIGH_MEM_CRYPTO_MODEL.md
-BEST_SUBMISSION.md
-NUMERAI_CRYPTO_ENSEMBLE.md
+# Previously ignored documentation that we now want to track
+# HIGH_MEM_CRYPTO_MODEL.md
+# BEST_SUBMISSION.md
+# NUMERAI_CRYPTO_ENSEMBLE.md
