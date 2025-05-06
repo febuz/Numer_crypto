@@ -73,3 +73,4 @@ Thumbs.db
 # Project specific
 github_key.pub
 **/.claude/settings.local.json
+data/yiedl/yiedl_historical.zip
