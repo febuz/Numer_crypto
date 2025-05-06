@@ -1,0 +1,19 @@
+2025-05-05 23:35:38,238 [INFO] Setting up GPUs: 0,1,2
+2025-05-05 23:35:38,381 [INFO] Initializing H2O...
+2025-05-05 23:35:43,263 [INFO] H2O version: 3.46.0.7
+2025-05-05 23:35:43,263 [INFO] Extracting sample data from Yiedl files...
+2025-05-05 23:35:43,350 [INFO] Created synthetic training data with 5000 samples
+2025-05-05 23:35:43,365 [INFO] Extracted 1115 potential crypto symbols
+2025-05-05 23:35:43,383 [INFO] Created test data with 500 samples
+2025-05-05 23:35:43,383 [INFO] Training models with 594s remaining
+2025-05-05 23:35:43,383 [INFO] Training H2O models with 594s time limit
+2025-05-05 23:35:44,944 [INFO] Converted training data to H2O frame: (5000, 28)
+2025-05-05 23:35:44,944 [INFO] Using 25 features for training
+2025-05-05 23:35:45,230 [INFO] Split data: Training (4015, 28), Validation (985, 28)
+2025-05-05 23:35:45,230 [INFO] Training Random Forest model...
+2025-05-05 23:35:45,230 [ERROR] Error training Random Forest model: H2ORandomForestEstimator.__init__() got an unexpected keyword argument 'col_sample_rate'
+2025-05-05 23:35:45,231 [INFO] Training GBM model...
+2025-05-05 23:36:37,305 [INFO] GBM model - Train AUC: 0.962299756585096, Valid AUC: 0.6074151074151074
+2025-05-05 23:36:37,305 [INFO] Training DeepLearning model...
+2025-05-05 23:36:42,567 [INFO] DeepLearning model - Train AUC: 0.747314312289546, Valid AUC: 0.6139305514305514
+2025-05-05 23:36:42,568 [INFO] Training AutoML model with 534 seconds remaining...

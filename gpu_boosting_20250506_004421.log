@@ -1,0 +1,22 @@
+2025-05-06 00:44:23,291 [INFO] Using GPU acceleration (GPU ID: 0, NVIDIA GeForce RTX 3090)
+2025-05-06 00:44:23,291 [INFO] Loading Yiedl data...
+2025-05-06 00:44:23,586 [INFO] Loaded Yiedl data: (10117, 3671)
+2025-05-06 00:44:23,698 [WARNING] No target column found, creating synthetic target
+2025-05-06 00:44:23,882 [INFO] Using 1 clean columns for synthetic target
+2025-05-06 00:44:23,905 [INFO] Preparing data for modeling...
+2025-05-06 00:44:24,309 [INFO] Limiting features from 3670 to 80
+2025-05-06 00:44:24,527 [INFO] Selected 80 features
+2025-05-06 00:44:24,671 [INFO] Training XGBoost model (GPU: True, GPU ID: 0)
+2025-05-06 00:44:25,943 [INFO] XGBoost - RMSE: 0.349736, MAE: 0.225565
+2025-05-06 00:44:25,953 [INFO] Training LightGBM model (GPU: True, GPU ID: 0)
+2025-05-06 00:44:28,814 [INFO] LightGBM - RMSE: 0.755062, MAE: 0.467126
+2025-05-06 00:44:28,820 [INFO] Creating optimized ensemble...
+2025-05-06 00:44:28,829 [INFO] Optimized weights: {'xgboost': np.float64(1.0), 'lightgbm': np.float64(0.0)}
+2025-05-06 00:44:28,829 [INFO] Ensemble - RMSE: 0.349736, MAE: 0.225565, R²: 0.999418
+2025-05-06 00:44:28,829 [INFO] Using ensemble predictions for submission
+2025-05-06 00:44:28,829 [WARNING] ID length (2024) doesn't match predictions length (1619), fixing...
+2025-05-06 00:44:28,834 [INFO] Submission saved to /media/knight2/EDB/repos/Numer_crypto/data/submissions/gpu_ensemble_20250506_004428.csv
+2025-05-06 00:44:28,839 [INFO] Validation submission saved to /media/knight2/EDB/repos/Numer_crypto/data/submissions/gpu_ensemble_20250506_004428_with_validation.csv
+2025-05-06 00:44:28,839 [INFO] Total runtime: 7.0s
+2025-05-06 00:44:28,839 [INFO] Best model: xgboost with RMSE: 0.349736
+2025-05-06 00:44:28,840 [INFO] Target RMSE of 0.25 not achieved. Best RMSE: 0.349736
