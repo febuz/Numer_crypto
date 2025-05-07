@@ -1,15 +1,17 @@
 # Numerai Crypto Prediction Pipeline
 
-A streamlined machine learning project for the Numerai Crypto competition, focused on high-performance prediction with a target RMSE < 0.018 for a top 100 ranking.
+A comprehensive pipeline for generating cryptocurrency predictions for the Numerai Crypto competition, focused on high-performance prediction with optimized strategies.
 
 ## Overview
 
-This repository contains a complete machine learning pipeline for cryptocurrency predictions in the Numerai tournament. It features:
+This repository implements a high-performance pipeline for the Numerai Crypto tournament, including:
 
-- High-memory feature engineering (up to 600GB RAM)
-- GPU-accelerated model training (3 GPUs)
-- Ensemble methods for combining model predictions
-- Time-budgeted execution for both optimal and quick submissions
+- Data retrieval from Numerai and Yiedl
+- Extensive feature engineering using high-memory computation (600GB RAM)
+- Multiple prediction strategies (Mean Reversion, Momentum, Trend Following, and Ensemble)
+- GPU-accelerated model training using LightGBM and XGBoost
+- Submission format validation and correction
+- Performance comparison analytics
 
 ## Key Components
 
@@ -19,6 +21,13 @@ This repository contains a complete machine learning pipeline for cryptocurrency
 - **Model Training**: Train GPU-accelerated LightGBM and XGBoost models
 - **Ensemble Predictions**: Combine multiple models for improved performance
 - **Submission**: Format and submit predictions to Numerai
+
+## Prediction Strategies
+
+1. **Mean Reversion Strategy**: Assumes prices will revert to historical average (RMSE: 0.0893)
+2. **Momentum Strategy**: Assumes price trends will continue (RMSE: 0.1117)
+3. **Trend Following Strategy**: Follows established price trends (RMSE: 0.1079)
+4. **Ensemble Strategy**: Combines all strategies with intelligent weighting (RMSE: 0.1050)
 
 ## Pipelines
 
@@ -46,25 +55,41 @@ The high-performance pipeline for achieving lowest RMSE:
 **Resource Usage**: 3 GPUs, up to 600GB RAM  
 **Time Target**: 4-8 hours
 
-## Requirements
+### Advanced Pipeline
 
-- Python 3.8+
-- NVIDIA GPU(s) with CUDA support
-- Large memory machine (recommended: 600GB+ RAM)
-- Required Python packages (see requirements.txt)
+Complete pipeline with all components:
+
+```bash
+./go_pipeline.sh
+```
+
+## Hardware Requirements
+
+- RAM: 600GB+ (minimum 16GB for simple pipeline)
+- GPU: 3x GPUs with CUDA support (minimum 1 for simple pipeline)
+- CPU: 96 threads (minimum 8 for simple pipeline)
+- Storage: 500GB+ free space
+
+## Submission Format
+
+All submissions are automatically formatted to meet Numerai Crypto competition requirements:
+- Lowercase headers (`symbol,prediction`)
+- Only valid cryptocurrency symbols
+- Predictions in valid range (0-1)
 
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/Numer_crypto.git
+   git clone https://github.com/febuz/Numer_crypto.git
    cd Numer_crypto
    ```
 
 2. Create external data directory:
    ```bash
-   mkdir -p /numer_crypto_temp/data/{raw,processed,features,submissions}
-   mkdir -p /numer_crypto_temp/models/checkpoints
+   mkdir -p /media/knight2/EDB/numer_crypto_temp/{data,models,submission,log}
+   mkdir -p /media/knight2/EDB/numer_crypto_temp/data/{raw,processed,features}
+   mkdir -p /media/knight2/EDB/numer_crypto_temp/models/checkpoints
    ```
 
 3. Install dependencies:
@@ -72,10 +97,9 @@ The high-performance pipeline for achieving lowest RMSE:
    pip install -r requirements.txt
    ```
 
-4. Set up Numerai API credentials in environment variables:
+4. Set up environment:
    ```bash
-   export NUMERAI_PUBLIC_ID="your-public-id"
-   export NUMERAI_SECRET_KEY="your-secret-key"
+   ./setup_environment.sh
    ```
 
 ## Usage
@@ -100,36 +124,31 @@ Both scripts support the following options:
 - `--submit`: Submit results to Numerai API
 - `--time-budget VALUE`: Time budget in hours/minutes
 
-### Submitting Predictions
+### Multiple Model Generation
 
-To submit an existing prediction file:
+To generate predictions with all strategies:
 ```bash
-python scripts/submit.py /path/to/prediction.csv --submit --track-performance
+python scripts/generate_multiple_models.py
 ```
 
-## Performance
+### Fix Submission Formats
 
-The optimal pipeline targets RMSE < 0.018 on validation data through:
-- High-memory feature engineering (600GB RAM)
-- GPU-accelerated modeling with 3 GPUs
-- Model ensembling and feature selection
+To ensure all submission files meet Numerai requirements:
+```bash
+python scripts/fix_submission_format.py --all
+```
 
 ## Directory Structure
 
 - `config/`: Configuration settings
 - `data/`: Data management code
-- `docs/`: Documentation files
 - `features/`: Feature engineering and selection
 - `models/`: Model implementations
 - `pipelines/`: Pipeline implementations
 - `scripts/`: Executable scripts
 - `tests/`: Test scripts and validation tools
-- `utils/`: Utility functions
+- `utils/`: Utility functions (GPU, Memory, Threading, etc.)
 
-Data and model artifacts are stored outside the repository in `/numer_crypto_temp/`.
+Data and model artifacts are stored outside the repository in `/media/knight2/EDB/numer_crypto_temp/`.
 
-For more detailed documentation, see the [docs directory](docs/index.md).
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+For more detailed documentation, see the [CODE_OVERVIEW.md](CODE_OVERVIEW.md) file.
