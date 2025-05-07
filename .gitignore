@@ -1,0 +1,12 @@
+
+.venv*
+venv*
+py_env*
+temp_venv
+__pycache__/
+*.py[cod]
+*$py.class
+.idea/
+/numer_crypto_temp/
+
+**/.claude/settings.local.json

@@ -1,0 +1,1 @@
+scripts/setup/setup_h2o_java17_environment.sh
