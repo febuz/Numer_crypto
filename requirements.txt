@@ -1,12 +1,22 @@
-# Updated requirements: 2025-05-07
+# Updated requirements: 2025-05-13
 # Core packages for data processing
 numerapi>=2.16.0             # For Numerai API access
-polars>=0.19.13              # Polars DataFrames for fast data processing
+polars>=1.29.0               # Latest Polars for fast data processing with GPU support
 pyarrow>=13.0.0              # Arrow interface for data processing
 fastparquet>=2023.10.1       # Parquet file support
 pandas>=2.0.0                # Data manipulation library
 numpy>=1.23.5                # Numerical computations
 scipy>=1.15.0                # Scientific computing
+
+# Polars optimization
+polars[all]>=1.29.0          # All polars optional dependencies
+dask>=2025.5.0               # Distributed computing
+toolz>=0.12.0                # Functional utilities
+
+# GPU acceleration (install if CUDA is available)
+# Note: cudf-polars is only available through conda/mamba
+# For pip installations, we'll use standard polars which is already very fast
+pyarrow>=13.0.0              # Required for GPU-optimized operations
 
 # Machine Learning
 scikit-learn>=1.0.2          # ML utilities and algorithms
@@ -20,7 +30,7 @@ pyspark==3.5.0               # Apache Spark Python API (optional)
 py4j==0.10.9.7               # Required by PySpark
 h2o==3.46.0.6                # H2O ML library (optional)
 pysparkling>=0.6.0           # Basic Sparkling Water interface (optional)
-cloudpickle==2.2.1           # For serialization
+cloudpickle>=3.0.0           # For serialization (compatible with dask)
 joblib>=1.2.0                # Parallel computing tools
 threadpoolctl>=3.2.0         # Thread pool control
 
@@ -45,6 +55,21 @@ seaborn>=0.13.0              # Statistical data visualization
 
 # Testing
 pytest>=7.4.3                # Testing framework
+
+# Workflow management and orchestration
+# Note: These are not needed in the main environment if using a separate Airflow virtual environment
+# But including them here allows for testing functionality without a separate env
+apache-airflow>=2.8.0        # Apache Airflow for workflow orchestration
+apache-airflow-providers-slack>=8.0.0  # Slack provider for Airflow
+gunicorn>=20.1.0             # WSGI HTTP Server for Airflow API server
+httpx>=0.25.0                # HTTP client required by Airflow
+sqlalchemy>=2.0.0            # Database interface for Airflow
+flask-appbuilder>=4.3.0      # Web UI framework for Airflow (optional)
+itsdangerous>=2.1.0          # Required for secure signed cookies
+cryptography>=41.0.0         # For generating and handling crypto keys
+markupsafe>=2.0.0            # Required by Jinja2
+werkzeug>=2.0.0              # HTTP utilities for Flask
+graphviz>=0.20.1             # For Airflow DAG visualization (removes warning)
 
 # Note: The following packages should be installed via conda
 # See setup_ubuntu_24.04_gpu.sh for conda installation instructions
