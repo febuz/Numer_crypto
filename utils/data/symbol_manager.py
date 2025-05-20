@@ -77,8 +77,6 @@ class SymbolManager:
         """
         Get symbols required for live predictions.
         """
-        logger.info("Getting live symbols...")
-        
         # Find the latest live data
         latest_live = self._find_latest_file("live_universe_r*.parquet")
         if not latest_live:
@@ -91,31 +89,23 @@ class SymbolManager:
         
         # Get live symbols
         live_symbols = set(live_df['symbol'].unique().to_list())
-        logger.info(f"Total unique symbols in live data: {len(live_symbols)}")
+        logger.info(f"Found {len(live_symbols)} symbols in live universe")
         
         return live_symbols
     
     def get_valid_symbols_for_features(self, 
                                      min_history_days: int = 30,
-                                     require_recent: bool = True,
-                                     _cache: dict = {}) -> Set[str]:
+                                     require_recent: bool = True) -> Set[str]:
         """
         Get symbols that have sufficient history for feature generation.
         
         Args:
             min_history_days: Minimum days of history required
             require_recent: Whether to require data in recent period
-            _cache: Internal cache dictionary to prevent repeated calculations
             
         Returns:
             Set of valid symbols
         """
-        # Use cached results if available with the same parameters
-        cache_key = f"{min_history_days}_{require_recent}"
-        if cache_key in _cache:
-            logger.info(f"Using cached valid symbols (cache key: {cache_key})")
-            return _cache[cache_key]
-            
         logger.info(f"Getting valid symbols for features (min_history={min_history_days} days)...")
         
         # Find the latest training file
@@ -170,9 +160,6 @@ class SymbolManager:
             
         # Additional filtering based on data quality
         valid_symbols = self._filter_by_data_quality(valid_symbols, min_history_days)
-        
-        # Cache the result
-        _cache[cache_key] = valid_symbols
         
         return valid_symbols
     

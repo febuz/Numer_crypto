@@ -58,15 +58,30 @@ def generate_real_predictions(model_id=None, feature_set_id=None, symbols=None):
     Returns:
         pd.DataFrame: DataFrame with Symbol and Prediction columns
     """
-    # Get symbols from live universe if not provided
-    if symbols is None:
-        symbols = get_live_universe_symbols()
-        if symbols is None:
-            logger.error("Could not load live universe symbols")
-            return None
+    # We MUST use symbols from live universe for valid Numerai submissions
+    # Even if symbols are provided, we verify against live universe
+    live_universe_symbols = get_live_universe_symbols()
+    if live_universe_symbols is None:
+        logger.error("Could not load live universe symbols - critical error")
+        raise ValueError("Failed to load live universe symbols")
     
-    logger.info(f"Generating predictions for {len(symbols)} symbols")
-    crypto_symbols = symbols
+    # If specific symbols were provided, verify they're in live universe
+    if symbols is not None:
+        # Filter to ensure we only use valid live symbols
+        valid_symbols = [s for s in symbols if s in live_universe_symbols]
+        if len(valid_symbols) < len(symbols):
+            logger.warning(f"Filtered out {len(symbols) - len(valid_symbols)} symbols not in live universe")
+        
+        if len(valid_symbols) == 0:
+            logger.error("No valid live symbols found in provided symbols list")
+            raise ValueError("No valid symbols for prediction")
+            
+        crypto_symbols = valid_symbols
+    else:
+        # Use all live symbols
+        crypto_symbols = live_universe_symbols
+    
+    logger.info(f"Generating predictions for {len(crypto_symbols)} live universe symbols")
     
     # Initialize the model and feature stores
     model_store = ModelStore()
@@ -144,8 +159,12 @@ def generate_real_predictions(model_id=None, feature_set_id=None, symbols=None):
             missing_symbols = [s for s in crypto_symbols if s not in available_symbols]
             
             if missing_symbols:
-                logger.warning(f"Missing features for {len(missing_symbols)} symbols")
-                # You might want to handle missing features differently
+                # Critical error - need features for prediction
+                error_msg = f"Missing features for {len(missing_symbols)} symbols. Cannot generate predictions."
+                logger.error(error_msg)
+                logger.error(f"First 10 missing symbols: {missing_symbols[:10]}")
+                logger.error("Cannot proceed with prediction generation without features")
+                raise ValueError(error_msg)
             
             # Generate predictions - exact API will depend on your model type
             model_type = model_metadata.get('model_type', '')
@@ -176,42 +195,18 @@ def generate_real_predictions(model_id=None, feature_set_id=None, symbols=None):
             
         except Exception as e:
             logger.error(f"Error generating predictions with model: {e}")
-            model = None  # Reset to use algorithmic approach
-    
-    # If no model or features available, use algorithmic approach
-    if model is None or features_df is None:
-        logger.info("Using algorithmic prediction method (no valid model or features available)")
+            raise ValueError(f"Failed to generate predictions: {e}")
+    else:
+        # No model or features available - critical error
+        error_msg = "Cannot generate predictions - missing model or features"
+        if model is None:
+            error_msg += ". No valid model found."
+        if features_df is None:
+            error_msg += ". No feature data found."
         
-        # Multiple algorithmic prediction strategies
-        strategies = {
-            'momentum': lambda s: np.clip(0.5 + np.sin(hash(s) % 100) * 0.3, 0.1, 0.9),
-            'mean_reversion': lambda s: np.clip(0.5 - np.cos(hash(s) % 100) * 0.25, 0.2, 0.8),
-            'trend_following': lambda s: np.clip(0.5 + np.tan(hash(s) % 50) * 0.1, 0.3, 0.7)
-        }
-        
-        # Use hash of symbol to determine base prediction and strategy
-        predictions = []
-        np.random.seed(42)  # For reproducibility
-        
-        for symbol in crypto_symbols:
-            # Select strategy based on symbol hash
-            strategy_key = list(strategies.keys())[hash(symbol) % len(strategies)]
-            strategy = strategies[strategy_key]
-            
-            # Generate prediction using strategy
-            base_pred = strategy(symbol)
-            
-            # Add some randomness for diversity
-            noise = np.random.normal(0, 0.05)
-            final_pred = np.clip(base_pred + noise, 0.05, 0.95)
-            
-            predictions.append(final_pred)
-        
-        # Create DataFrame
-        prediction_df = pd.DataFrame({
-            'symbol': crypto_symbols,
-            'prediction': predictions
-        })
+        logger.error(error_msg)
+        logger.error("Pipeline cannot proceed without valid models and features")
+        raise ValueError(error_msg)
     
     logger.info(f"Generated predictions for {len(prediction_df)} symbols")
     return prediction_df

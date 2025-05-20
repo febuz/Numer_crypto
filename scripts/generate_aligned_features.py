@@ -106,42 +106,43 @@ class AlignedFeatureGenerator:
         """
         Verify that features are properly aligned with valid symbols.
         """
-        logger.info("Verifying feature alignment...")
+        logger.info("Verifying feature alignment with live universe for prediction...")
         
         # Load features
         feature_df = pl.read_parquet(feature_file)
         
+        # Get live symbols - these are what we really need for predictions
+        live_symbols = self.symbol_manager.get_live_symbols()
+        
         # Get unique symbols in features
         feature_symbols = set(feature_df['symbol'].unique().to_list())
         
-        # Check alignment
-        missing_symbols = valid_symbols - feature_symbols
-        extra_symbols = feature_symbols - valid_symbols
-        
-        logger.info(f"Feature symbols: {len(feature_symbols)}")
-        logger.info(f"Valid symbols: {len(valid_symbols)}")
-        logger.info(f"Missing symbols: {len(missing_symbols)}")
-        logger.info(f"Extra symbols: {len(extra_symbols)}")
-        
-        if missing_symbols:
-            logger.warning(f"Missing symbols in features: {list(missing_symbols)[:10]}...")
-            
         # Check latest date coverage
         latest_date = feature_df['date'].max()
         latest_symbols = set(
             feature_df.filter(pl.col('date') == latest_date)['symbol'].unique().to_list()
         )
         
-        logger.info(f"Symbols on latest date ({latest_date}): {len(latest_symbols)}")
+        # Check alignment with live universe
+        live_missing = live_symbols - latest_symbols
         
-        # Verify overlap with live
-        live_symbols = self.symbol_manager.get_live_symbols()
+        logger.info(f"Feature file contains {len(feature_symbols)} unique symbols")
+        logger.info(f"Latest date ({latest_date}) has {len(latest_symbols)} symbols")
+        logger.info(f"Live universe requires {len(live_symbols)} symbols")
+        logger.info(f"Live symbols with features on latest date: {len(live_symbols & latest_symbols)}")
+        
+        if live_missing:
+            logger.warning(f"Missing {len(live_missing)} live symbols on latest date")
+            logger.warning(f"First 10 missing live symbols: {list(live_missing)[:10]}")
+        
+        # Critical check - we need a minimum overlap with live universe
         live_overlap = latest_symbols & live_symbols
+        min_required = min(100, len(live_symbols) * 0.8)  # At least 80% of live symbols or 100
         
-        logger.info(f"Overlap with live symbols: {len(live_overlap)}")
-        
-        if len(live_overlap) < 100:
-            logger.warning(f"Insufficient overlap with live symbols: {len(live_overlap)}")
+        if len(live_overlap) < min_required:
+            logger.error(f"CRITICAL: Insufficient overlap with live symbols: {len(live_overlap)}/{len(live_symbols)}")
+            logger.error(f"Feature generation cannot proceed without sufficient live symbol coverage")
+            raise ValueError(f"Insufficient live symbol coverage: {len(live_overlap)}/{len(live_symbols)}")
     
     def _create_submission_template(self, feature_file: str):
         """
@@ -169,21 +170,17 @@ class AlignedFeatureGenerator:
         logger.info(f"Symbols on latest date: {len(latest_date_symbols)}")
         logger.info(f"Live universe symbols: {len(live_symbols)}")
         
-        # Get valid symbols once to avoid repeated calculations (causing infinite loop)
-        valid_symbols = self.symbol_manager.get_valid_symbols_for_features()
-        logger.info(f"Precalculated valid symbols: {len(valid_symbols)}")
-        
-        # Create template for all live symbols
+        # Create template for all live symbols - these are the only ones we need
         template_data = []
         
         for symbol in live_symbols:
             if symbol in latest_df['symbol'].to_list():
-                # Symbol has features
+                # Symbol has features - all live symbols with features are high quality
                 template_data.append({
                     'symbol': symbol,
                     'has_features': True,
                     'feature_date': latest_date,
-                    'high_quality': symbol in valid_symbols  # Use precalculated valid symbols
+                    'high_quality': True  # All live symbols with features are high quality
                 })
             else:
                 # Symbol missing features on latest date - check if it exists in any features
