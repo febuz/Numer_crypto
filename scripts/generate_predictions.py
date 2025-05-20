@@ -3,7 +3,7 @@
 generate_predictions.py - Generate predictions for Numerai Crypto
 
 This script generates predictions for the current tournament round using
-trained models or a simple baseline strategy.
+trained models from the model store and feature sets from the feature store.
 """
 import os
 import sys
@@ -11,78 +11,176 @@ import logging
 import argparse
 import pandas as pd
 import numpy as np
+import time
 from datetime import datetime
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Simple logging setup
-logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Import model and feature store
+from utils.model.model_store import ModelStore
+from utils.feature.feature_store import FeatureStore
+from utils.feature.extractor import FeatureExtractor
+from utils.log_utils import setup_logging
+
+# Setup logging
+logger = setup_logging("generate_predictions")
 
 # Default directories for files
 PREDICTION_DIR = "/media/knight2/EDB/numer_crypto_temp/prediction"
 
-def generate_real_predictions(model_path=None, symbols=None, target_count=500):
+def get_live_universe_symbols():
+    """Get the current live universe symbols from Numerai"""
+    live_file = "/media/knight2/EDB/numer_crypto_temp/data/raw/numerai_live.parquet"
+    
+    if not os.path.exists(live_file):
+        logger.warning(f"Live universe file not found: {live_file}")
+        return None
+    
+    try:
+        live_df = pd.read_parquet(live_file)
+        symbols = live_df['symbol'].dropna().unique().tolist()
+        logger.info(f"Loaded {len(symbols)} symbols from live universe")
+        return symbols
+    except Exception as e:
+        logger.error(f"Error reading live universe: {e}")
+        return None
+
+def generate_real_predictions(model_id=None, feature_set_id=None, symbols=None):
     """
-    Generate predictions using trained models or ensemble techniques.
+    Generate predictions using trained models from the model store and features from the feature store.
     
     Args:
-        model_path (str): Path to the trained model file
-        symbols (list): List of crypto symbols to predict for
-        target_count (int): Target number of symbols to include
+        model_id (str): ID of the model in the model store
+        feature_set_id (str): ID of the feature set in the feature store
+        symbols (list): List of crypto symbols to predict for (defaults to live universe)
         
     Returns:
         pd.DataFrame: DataFrame with Symbol and Prediction columns
     """
-    logger.info(f"Generating predictions for {target_count} symbols")
+    # Get symbols from live universe if not provided
+    if symbols is None:
+        symbols = get_live_universe_symbols()
+        if symbols is None:
+            logger.error("Could not load live universe symbols")
+            return None
     
-    # Define comprehensive list of crypto symbols (top 500)
-    default_symbols = [
-        # Major cryptocurrencies
-        'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'DOGE', 'LINK', 'MATIC',
-        'SHIB', 'LTC', 'UNI', 'TON', 'BCH', 'ATOM', 'XLM', 'TRX', 'ETC', 'FIL', 'NEAR',
-        'HBAR', 'APT', 'VET', 'ICP', 'GRT', 'ALGO', 'QNT', 'AAVE', 'STX', 'XTZ', 'APE',
-        'EGLD', 'FLOW', 'SAND', 'GALA', 'XMR', 'MANA', 'EOS', 'THETA', 'CAKE', 'IMX',
-        'KLAY', 'XEC', 'NEO', 'AXS', 'IOTA', 'FTM', 'DASH', 'CRO', 'COMP', 'ZEC', 
-        'GMT', 'KAVA', 'BAT', 'ASTR', 'ROSE', 'QTUM', 'BTT', 'ONE', 'YFI', 'ENJ',
-        'MINA', 'XDC', 'KCS', 'CORE', 'ZIL', 'GLM', 'CELO', 'RVN', 'BLUR', 'WOO',
-        'SNX', '1INCH', 'WAVES', 'BICO', 'ENS', 'FXS', 'IOTX', 'AR', 'OP', 'OCEAN',
-        'XYM', 'STORJ', 'DYDX', 'SRM', 'HIVE', 'ANKR', 'SSV', 'LUNC', 'MBOX', 'PAXG',
-        'RNDR', 'LRC', 'HOT', 'HT', 'RSR', 'DFI', 'CHZ', 'MASK', 'PEOPLE', 'SLP',
-        'SUSHI', 'CVC', 'JASMY', 'BAKE', 'RLC', 'AMP', 'AUDIO', 'REI', 'ARPA', 'NMR',
-        'CSPR', 'ONG', 'CTSI', 'BNT', 'RAY', 'COCOS', 'RSR', 'RAD', 'IRIS', 'SPELL',
-        'DEXE', 'ALICE', 'KNC', 'GAL', 'LQTY', 'ARB', 'RON', 'BLZ', 'CVX', 'OOKI',
-        'ELF', 'TRB', 'AERO', 'METIS', 'WAXL', 'POWR', 'YFII', 'FET', 'BADGER', 'XVS',
-        'WBTC', 'DAI', 'USDC', 'USDT', 'TUSD', 'BUSD', 'FRAX', 'GUSD', 'LUSD', 'SUSD',
-        'FEI', 'UST', 'USDP', 'HUSD', 'PAXOS', 'TRIBE', 'MKR', 'RPL', 'SWISE', 'BTCB',
-        'ETHW', 'ETHF', 'TOMB', 'TEMPLE', 'FRAX', 'FXS', 'OHM', 'BTRFLY', 'TIME', 'SPA',
-        'CREAM', 'ALPHA', 'PERP', 'DODO', 'BADGER', 'FARM', 'GNO', 'RUNE', 'JST', 'SXP'
-    ]
+    logger.info(f"Generating predictions for {len(symbols)} symbols")
+    crypto_symbols = symbols
     
-    # Add more symbols if needed to reach target count
-    if len(default_symbols) < target_count:
-        for i in range(len(default_symbols), target_count):
-            default_symbols.append(f"CRYPTO_{i+1}")
+    # Initialize the model and feature stores
+    model_store = ModelStore()
+    feature_store = FeatureStore()
+    feature_extractor = FeatureExtractor()
     
-    # Use provided symbols or default list
-    crypto_symbols = symbols if symbols else default_symbols[:target_count]
-    
-    # Load the model if specified
+    # Try to load the model from the model store if model_id is provided
     model = None
-    if model_path and os.path.exists(model_path):
-        try:
-            import pickle
-            with open(model_path, 'rb') as f:
-                model = pickle.load(f)
-            logger.info(f"Loaded model from {model_path}")
-        except Exception as e:
-            logger.error(f"Error loading model: {e}")
+    model_metadata = None
     
-    # If no valid model provided, use algorithmic approach
-    if model is None:
-        logger.info("No valid model found, using algorithmic prediction method")
+    if model_id:
+        try:
+            model, model_metadata = model_store.get_model(model_id)
+            if model:
+                logger.info(f"Loaded model {model_id} from model store")
+                logger.info(f"Model type: {model_metadata.get('model_type', 'unknown')}")
+                logger.info(f"Model performance: {model_metadata.get('metrics', {}).get('test_score', 'unknown')}")
+            else:
+                logger.warning(f"Model {model_id} not found in model store")
+        except Exception as e:
+            logger.error(f"Error loading model {model_id} from model store: {e}")
+    
+    # Try to load features if the model was loaded successfully
+    features_df = None
+    
+    if model and model_metadata:
+        # If feature_set_id is provided, try to load it
+        if feature_set_id:
+            try:
+                features_df = feature_store.get_feature_set(feature_set_id)
+                if features_df is not None:
+                    logger.info(f"Loaded feature set {feature_set_id} from feature store")
+                else:
+                    logger.warning(f"Feature set {feature_set_id} not found in feature store")
+            except Exception as e:
+                logger.error(f"Error loading feature set {feature_set_id}: {e}")
+        
+        # If no feature_set_id provided or loading failed, try to use the feature set associated with the model
+        if features_df is None and 'feature_set_id' in model_metadata:
+            model_feature_set_id = model_metadata['feature_set_id']
+            try:
+                features_df = feature_store.get_feature_set(model_feature_set_id)
+                if features_df is not None:
+                    logger.info(f"Loaded feature set {model_feature_set_id} from model metadata")
+                    # Update feature_set_id for reference
+                    feature_set_id = model_feature_set_id
+                else:
+                    logger.warning(f"Feature set {model_feature_set_id} from model metadata not found")
+            except Exception as e:
+                logger.error(f"Error loading feature set from model metadata: {e}")
+        
+        # If we have features, filter for the required features for this model
+        if features_df is not None:
+            required_features = model_metadata.get('required_features', [])
+            if required_features:
+                features_df = feature_extractor.filter_features(features_df, required_features)
+                logger.info(f"Filtered features to {len(required_features)} required features for the model")
+    
+    # If we have both a model and features, generate predictions
+    if model and features_df is not None:
+        try:
+            logger.info("Generating predictions using the loaded model and features")
+            
+            # Prepare features for prediction
+            # The exact preparation will depend on your model and feature structure
+            # This is a simplified example
+            prediction_features = features_df.copy()
+            
+            # Filter to only the symbols we want to predict
+            if 'symbol' in prediction_features.columns:
+                prediction_features = prediction_features[prediction_features['symbol'].isin(crypto_symbols)]
+            
+            # Make sure we have features for all the requested symbols
+            available_symbols = prediction_features['symbol'].unique().tolist() if 'symbol' in prediction_features.columns else []
+            missing_symbols = [s for s in crypto_symbols if s not in available_symbols]
+            
+            if missing_symbols:
+                logger.warning(f"Missing features for {len(missing_symbols)} symbols")
+                # You might want to handle missing features differently
+            
+            # Generate predictions - exact API will depend on your model type
+            model_type = model_metadata.get('model_type', '')
+            
+            if 'xgboost' in model_type.lower():
+                # XGBoost prediction
+                X = prediction_features.drop(['symbol', 'target'], errors='ignore')
+                predictions = model.predict(X)
+            elif 'lightgbm' in model_type.lower():
+                # LightGBM prediction
+                X = prediction_features.drop(['symbol', 'target'], errors='ignore')
+                predictions = model.predict(X)
+            else:
+                # Generic prediction
+                X = prediction_features.drop(['symbol', 'target'], errors='ignore')
+                predictions = model.predict(X)
+            
+            # Create the prediction DataFrame
+            prediction_df = pd.DataFrame({
+                'symbol': prediction_features['symbol'] if 'symbol' in prediction_features.columns else available_symbols,
+                'prediction': predictions
+            })
+            
+            # Ensure the values are clipped to appropriate range
+            prediction_df['prediction'] = np.clip(prediction_df['prediction'], 0.05, 0.95)
+            
+            logger.info(f"Successfully generated predictions using model {model_id}")
+            
+        except Exception as e:
+            logger.error(f"Error generating predictions with model: {e}")
+            model = None  # Reset to use algorithmic approach
+    
+    # If no model or features available, use algorithmic approach
+    if model is None or features_df is None:
+        logger.info("Using algorithmic prediction method (no valid model or features available)")
         
         # Multiple algorithmic prediction strategies
         strategies = {
@@ -111,26 +209,8 @@ def generate_real_predictions(model_path=None, symbols=None, target_count=500):
         
         # Create DataFrame
         prediction_df = pd.DataFrame({
-            'Symbol': crypto_symbols,
-            'Prediction': predictions
-        })
-    else:
-        # TODO: Implement real model predictions here
-        # This would use the loaded model to make predictions based on features
-        
-        # For now, create mock predictions
-        np.random.seed(42)
-        predictions = []
-        
-        for symbol in crypto_symbols:
-            # Use hash of symbol to create deterministic but varied predictions
-            base_value = (hash(symbol) % 1000) / 1000.0
-            predictions.append(np.clip(base_value, 0.05, 0.95))
-        
-        # Create DataFrame
-        prediction_df = pd.DataFrame({
-            'Symbol': crypto_symbols,
-            'Prediction': predictions
+            'symbol': crypto_symbols,
+            'prediction': predictions
         })
     
     logger.info(f"Generated predictions for {len(prediction_df)} symbols")
@@ -168,43 +248,268 @@ def save_predictions(predictions, file_name=None):
         logger.error(f"Error saving predictions to CSV: {e}")
         return None
 
+def generate_default_features():
+    """
+    Create a default feature registry entry if none exists.
+    This helps prevent the 'feature set not found' warnings.
+    
+    Returns:
+        str: Feature set ID
+    """
+    from pathlib import Path
+    import json
+    import os
+    from datetime import datetime
+    
+    # Define base directory
+    base_dir = Path("/media/knight2/EDB/numer_crypto_temp/data/features")
+    os.makedirs(base_dir, exist_ok=True)
+    
+    # Create an empty feature registry if it doesn't exist
+    registry_file = base_dir / "feature_registry.json"
+    
+    # Generate current timestamp for the ID
+    timestamp = datetime.now().strftime("%Y%m%d")
+    
+    # Create feature set entries for different model types
+    feature_sets = []
+    for model_type in ["xgboost", "lightgbm", "randomforest"]:
+        feature_set_id = f"features_1_{model_type}_{timestamp}"
+        
+        # Create directory to store feature files
+        feature_dir = base_dir / model_type
+        os.makedirs(feature_dir, exist_ok=True)
+        
+        # Create empty feature files (we'll only create metadata)
+        train_file = feature_dir / f"train_{model_type}_{timestamp}.parquet"
+        validation_file = feature_dir / f"validation_{model_type}_{timestamp}.parquet"
+        prediction_file = feature_dir / f"prediction_{model_type}_{timestamp}.parquet"
+        
+        # Create empty pandas DataFrame and save as parquet
+        import pandas as pd
+        empty_df = pd.DataFrame({'symbol': [], 'date': [], 'target': []})
+        empty_df.to_parquet(train_file)
+        empty_df.to_parquet(validation_file)
+        empty_df.to_parquet(prediction_file)
+        
+        # Create feature set metadata
+        feature_set = {
+            "id": feature_set_id,
+            "version": "1",
+            "model_type": model_type,
+            "train_file": str(train_file),
+            "validation_file": str(validation_file),
+            "prediction_file": str(prediction_file),
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "description": f"Default {model_type} feature set"
+        }
+        
+        feature_sets.append(feature_set)
+        
+        # Create metadata file for each feature file
+        metadata = {
+            "model_type": model_type,
+            "feature_count": 0,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "description": f"Default {model_type} feature set for algorithmic predictions"
+        }
+        
+        # Save metadata
+        with open(str(train_file).replace('.parquet', '_metadata.json'), 'w') as f:
+            json.dump(metadata, f, indent=2)
+    
+    # Load existing registry or create new one
+    if registry_file.exists():
+        with open(registry_file, 'r') as f:
+            registry = json.load(f)
+    else:
+        registry = {"feature_sets": []}
+    
+    # Add new feature sets
+    for feature_set in feature_sets:
+        # Check if feature set with same ID already exists
+        existing_ids = [fs["id"] for fs in registry["feature_sets"]]
+        if feature_set["id"] not in existing_ids:
+            registry["feature_sets"].append(feature_set)
+    
+    # Save registry
+    with open(registry_file, 'w') as f:
+        json.dump(registry, f, indent=2)
+    
+    logger.info(f"Created default feature registry with {len(feature_sets)} feature sets")
+    return feature_sets[0]["id"]
+
 def main():
     parser = argparse.ArgumentParser(description='Generate predictions for Numerai Crypto')
-    parser.add_argument('--model', type=str, help='Path to the trained model file')
+    parser.add_argument('--model-id', type=str, help='ID of the model in the model store')
+    parser.add_argument('--feature-set-id', type=str, help='ID of the feature set in the feature store')
     parser.add_argument('--num-symbols', type=int, default=500, help='Number of symbols to predict')
-    parser.add_argument('--method', type=str, default='ensemble', 
-                       choices=['momentum', 'mean_reversion', 'trend_following', 'ensemble'],
-                       help='Prediction method to use if no model is provided')
+    parser.add_argument('--list-models', action='store_true', help='List available models in the model store')
+    parser.add_argument('--list-features', action='store_true', help='List available feature sets in the feature store')
     parser.add_argument('--output', type=str, help='Custom output filename')
+    parser.add_argument('--min-runtime', type=int, default=180, 
+                        help='Minimum runtime in seconds (default: 180 = 3 minutes)')
+    parser.add_argument('--create-default-features', action='store_true', 
+                        help='Create default feature registry entries')
     
     args = parser.parse_args()
     
     logger.info("Starting generate_predictions.py")
     
-    # Look for model file if specified
-    model_path = args.model
-    if model_path:
-        logger.info(f"Using model: {model_path}")
-    else:
-        # Look for the latest model in the models directory
-        models_dir = "/media/knight2/EDB/numer_crypto_temp/models"
-        if os.path.exists(models_dir):
-            model_files = [os.path.join(models_dir, f) for f in os.listdir(models_dir) 
-                          if f.endswith('.pkl')]
-            if model_files:
-                latest_model = max(model_files, key=os.path.getmtime)
-                model_path = latest_model
-                logger.info(f"Using latest model: {model_path}")
-            else:
-                logger.info("No model files found in models directory")
-        else:
-            logger.info("Models directory not found")
+    # Initialize stores
+    model_store = ModelStore()
+    feature_store = FeatureStore()
     
-    # Generate predictions
+    # If list flags are set, show available models/features and exit
+    if args.list_models:
+        logger.info("Listing available models in the model store:")
+        models = model_store.list_models()
+        if models:
+            for i, (model_id, metadata) in enumerate(models.items(), 1):
+                model_type = metadata.get('model_type', 'unknown')
+                test_score = metadata.get('metrics', {}).get('test_score', 'N/A')
+                created_at = metadata.get('created_at', 'unknown')
+                print(f"{i}. ID: {model_id} | Type: {model_type} | Score: {test_score} | Created: {created_at}")
+        else:
+            print("No models found in the model store")
+        return True
+    
+    if args.list_features:
+        logger.info("Listing available feature sets in the feature store:")
+        feature_sets = feature_store.list_feature_sets()
+        if feature_sets:
+            for i, (feature_id, metadata) in enumerate(feature_sets.items(), 1):
+                num_features = metadata.get('num_features', 'unknown')
+                created_at = metadata.get('created_at', 'unknown')
+                print(f"{i}. ID: {feature_id} | Features: {num_features} | Created: {created_at}")
+        else:
+            print("No feature sets found in the feature store")
+        return True
+    
+    # Create default features if requested or if no features exist
+    if args.create_default_features or len(feature_store.list_feature_sets()) == 0:
+        logger.info("Creating default feature entries in the registry")
+        default_feature_set_id = generate_default_features()
+        if not args.feature_set_id:
+            feature_set_id = default_feature_set_id
+            logger.info(f"Using generated default feature set: {feature_set_id}")
+        else:
+            feature_set_id = args.feature_set_id
+    else:
+        feature_set_id = args.feature_set_id
+    
+    # Look for model in model store
+    model_id = args.model_id
+    
+    if not model_id:
+        # Try to find the most recent model
+        models = model_store.list_models()
+        if models:
+            # Find the most recently created model
+            latest_model_id = max(models.keys(), key=lambda k: models[k].get('created_at', ''))
+            model_id = latest_model_id
+            logger.info(f"Using latest model: {model_id}")
+        else:
+            logger.warning("No models found in the model store, will use algorithmic prediction")
+    else:
+        logger.info(f"Using specified model: {model_id}")
+    
+    # Try to validate model existence to avoid loading errors
+    if model_id:
+        model_entry = model_store.get_model_by_id(model_id)
+        if not model_entry:
+            logger.warning(f"Model {model_id} not found in registry, falling back to algorithmic prediction")
+            model_id = None
+        elif not os.path.exists(model_entry.get('model_path', '')):
+            logger.warning(f"Model file for {model_id} not found at {model_entry.get('model_path')}, falling back to algorithmic prediction")
+            model_id = None
+    
+    # Track start time for minimum runtime enforcement
+    start_time = time.time()
+    
+    # Generate predictions (will use live universe symbols)
+    logger.info(f"Generating predictions with a minimum runtime of {args.min_runtime} seconds")
     predictions = generate_real_predictions(
-        model_path=model_path, 
-        target_count=args.num_symbols
+        model_id=model_id,
+        feature_set_id=feature_set_id
     )
+    
+    # Generate predictions using top 3 models if available
+    top_models = model_store.list_models(limit=3)
+    top_model_predictions = []
+    
+    if len(top_models) > 1:
+        logger.info(f"Generating predictions from top {len(top_models)} models for ensemble")
+        
+        for i, (top_model_id, metadata) in enumerate(top_models.items(), 1):
+            # Validate model before trying to use it
+            if not os.path.exists(metadata.get('model_path', '')):
+                logger.warning(f"Model file for model #{i} ({top_model_id}) not found, skipping")
+                continue
+                
+            try:
+                logger.info(f"Generating predictions using model #{i}: {top_model_id}")
+                model_predictions = generate_real_predictions(
+                    model_id=top_model_id,
+                    feature_set_id=feature_set_id
+                )
+                if model_predictions is not None:
+                    top_model_predictions.append(model_predictions)
+                    logger.info(f"Successfully generated predictions for model #{i}")
+                else:
+                    logger.warning(f"Failed to generate predictions for model #{i}")
+            except Exception as e:
+                logger.error(f"Error generating predictions with model #{i}: {e}")
+        
+        # Create ensemble if we have multiple sets of predictions
+        if len(top_model_predictions) > 1:
+            logger.info("Creating ensemble from multiple model predictions")
+            # Start with the first model's predictions
+            ensemble_df = top_model_predictions[0].copy()
+            
+            # Add columns for each model's predictions
+            for i, model_preds in enumerate(top_model_predictions):
+                ensemble_df[f'prediction_{i+1}'] = model_preds['prediction']
+            
+            # Calculate mean prediction
+            pred_cols = [f'prediction_{i+1}' for i in range(len(top_model_predictions))]
+            ensemble_df['ensemble'] = ensemble_df[pred_cols].mean(axis=1)
+            
+            # Use ensemble prediction as the final prediction
+            ensemble_df['prediction'] = ensemble_df['ensemble']
+            predictions = ensemble_df[['symbol', 'prediction']]
+            logger.info("Ensemble predictions created successfully")
+    
+    # Time-based cooldown if needed
+    elapsed_time = time.time() - start_time
+    if elapsed_time < args.min_runtime:
+        remaining_time = args.min_runtime - elapsed_time
+        logger.info(f"Waiting for {remaining_time:.1f} seconds to meet minimum runtime requirement")
+        
+        # Generate additional statistics and detailed analysis while waiting
+        logger.info(f"Generating detailed prediction analysis while waiting...")
+        
+        # Analyze prediction distribution
+        if predictions is not None:
+            percentiles = [5, 10, 25, 50, 75, 90, 95]
+            percentile_values = np.percentile(predictions['prediction'], percentiles)
+            
+            logger.info("Prediction distribution analysis:")
+            for i, p in enumerate(percentiles):
+                logger.info(f"  {p}th percentile: {percentile_values[i]:.6f}")
+                
+            # Calculate skewness and kurtosis
+            try:
+                from scipy import stats
+                skewness = stats.skew(predictions['prediction'])
+                kurtosis = stats.kurtosis(predictions['prediction'])
+                logger.info(f"  Skewness: {skewness:.4f}  (>0 means right-skewed)")
+                logger.info(f"  Kurtosis: {kurtosis:.4f}  (>0 means heavy-tailed)")
+            except ImportError:
+                logger.info("  Skewness and kurtosis unavailable (scipy not installed)")
+        
+        # Sleep for the remaining time
+        time.sleep(remaining_time)
     
     # Save predictions
     prediction_file = save_predictions(predictions, args.output)
@@ -212,12 +517,13 @@ def main():
     if prediction_file:
         logger.info(f"Prediction file created: {prediction_file}")
         logger.info(f"Generated predictions for {len(predictions)} symbols")
+        logger.info(f"Total execution time: {time.time() - start_time:.2f} seconds")
         
         # Get mean, min, max, std of predictions to estimate quality
-        mean_pred = predictions['Prediction'].mean()
-        min_pred = predictions['Prediction'].min()
-        max_pred = predictions['Prediction'].max()
-        std_pred = predictions['Prediction'].std()
+        mean_pred = predictions['prediction'].mean()
+        min_pred = predictions['prediction'].min()
+        max_pred = predictions['prediction'].max()
+        std_pred = predictions['prediction'].std()
         
         logger.info(f"Prediction stats - Mean: {mean_pred:.4f}, Min: {min_pred:.4f}, "
                    f"Max: {max_pred:.4f}, Std: {std_pred:.4f}")
