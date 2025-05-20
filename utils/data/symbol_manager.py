@@ -76,20 +76,28 @@ class SymbolManager:
     def get_live_symbols(self) -> Set[str]:
         """
         Get symbols required for live predictions.
+        Always use the file from /data/raw to ensure we're using the most recent live universe.
         """
-        # Find the latest live data
-        latest_live = self._find_latest_file("live_universe_r*.parquet")
-        if not latest_live:
-            raise FileNotFoundError("No live data found")
-            
-        logger.info(f"Using live data: {latest_live}")
+        # Look for live universe in raw data directory first (preferred location)
+        raw_dir = self.base_dir / "data" / "raw"
+        raw_live_file = raw_dir / "numerai_live.parquet"
+        
+        if os.path.exists(raw_live_file):
+            live_file = raw_live_file
+            logger.info(f"Using live universe from raw data: {live_file}")
+        else:
+            # Fallback to finding latest live file in numerai directory
+            latest_live = self._find_latest_file("live_universe_r*.parquet")
+            if not latest_live:
+                raise FileNotFoundError("No live data found")
+            live_file = latest_live
+            logger.info(f"Using live universe from numerai data: {live_file}")
         
         # Load live data
-        live_df = pl.read_parquet(latest_live)
+        live_df = pl.read_parquet(live_file)
         
         # Get live symbols
         live_symbols = set(live_df['symbol'].unique().to_list())
-        logger.info(f"Found {len(live_symbols)} symbols in live universe")
         
         return live_symbols
     

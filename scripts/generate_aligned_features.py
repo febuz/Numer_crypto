@@ -168,7 +168,6 @@ class AlignedFeatureGenerator:
         
         logger.info(f"Total feature symbols: {len(feature_symbols)}")
         logger.info(f"Symbols on latest date: {len(latest_date_symbols)}")
-        logger.info(f"Live universe symbols: {len(live_symbols)}")
         
         # Create template for all live symbols - these are the only ones we need
         template_data = []
