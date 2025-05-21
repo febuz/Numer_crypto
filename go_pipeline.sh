@@ -288,17 +288,10 @@ run_airflow_pipeline() {
         # Initialize the database
         airflow db migrate
         
-        # Create admin user if needed
-        if ! airflow users list | grep -q "admin"; then
-            echo -e "${BLUE}Creating admin user...${NC}"
-            airflow users create \
-                --username admin \
-                --firstname Admin \
-                --lastname User \
-                --role Admin \
-                --email admin@example.com \
-                --password admin || echo -e "${YELLOW}User creation failed - user may already exist${NC}"
-        fi
+        # Admin user is created automatically by Airflow 3.0
+        # Do not set a hardcoded password for security reasons
+        echo -e "${BLUE}Admin user is automatically created by Airflow 3.0${NC}"
+        echo -e "${BLUE}Password is stored in $AIRFLOW_HOME/simple_auth_manager_passwords.json.generated${NC}"
         
         deactivate
         

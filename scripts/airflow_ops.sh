@@ -362,7 +362,7 @@ auth_manager = StandardAuthManager()
 # Create admin user
 user_details = UserDetails(
     username="admin",
-    password="numerai123",  # Using a more secure password
+    password=None,  # Password will be automatically generated
     email="admin@example.com",
     first_name="Admin",
     last_name="User",
@@ -375,13 +375,18 @@ user_details = UserDetails(
 try:
     existing_user = auth_manager.get_user_details_by_username("admin")
     print("User 'admin' already exists, updating password...")
-    auth_manager.update_user_password(existing_user.username, "numerai123")
+    # Reset password - it will be automatically generated and stored in the JSON file
+    import secrets
+    import string
+    secure_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+    auth_manager.update_user_password(existing_user.username, secure_password)
 except Exception:
     # Create user if it doesn't exist
     print("Creating new admin user...")
     auth_manager.create_user_details(user_details)
 
-print("Admin user setup complete. Username: admin, Password: numerai123")
+print("Admin user setup complete. Username: admin")
+print("Password is stored in the simple_auth_manager_passwords.json.generated file")
 EOF
 
         # Run the script
@@ -390,7 +395,7 @@ EOF
         
         echo -e "${GREEN}User created or updated successfully${NC}"
         echo -e "${GREEN}Username: admin${NC}"
-        echo -e "${GREEN}Password: numerai123${NC}"
+        echo -e "${GREEN}Password is stored in $AIRFLOW_HOME/simple_auth_manager_passwords.json.generated${NC}"
         
         deactivate
         ;;

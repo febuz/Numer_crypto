@@ -263,18 +263,10 @@ if [ "$USE_AIRFLOW" = true ]; then
         echo -e "${BLUE}Initializing Airflow database...${NC}"
         airflow db init
         
-        # Create default admin user
-        echo -e "${BLUE}Creating default admin user...${NC}"
-        airflow users create \
-            --username admin \
-            --firstname Admin \
-            --lastname User \
-            --role Admin \
-            --email admin@example.com \
-            --password admin
-        
+        # Admin user is created automatically by Airflow 3.0
         echo -e "${GREEN}Airflow setup complete!${NC}"
-        echo -e "${GREEN}Default user: admin, password: admin${NC}"
+        echo -e "${GREEN}Admin user is created automatically by Airflow 3.0${NC}"
+        echo -e "${GREEN}The password is stored in $AIRFLOW_HOME/simple_auth_manager_passwords.json.generated${NC}"
     else
         echo -e "${GREEN}Airflow is already initialized${NC}"
     fi

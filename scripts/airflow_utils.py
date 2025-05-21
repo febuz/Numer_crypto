@@ -192,7 +192,7 @@ class AirflowUtils:
             return False
     
     @staticmethod
-    def create_airflow_user(username="admin", password="admin", 
+    def create_airflow_user(username="admin", password=None, 
                            firstname="Admin", lastname="User", 
                            email="admin@example.com", role="Admin"):
         """
@@ -200,7 +200,7 @@ class AirflowUtils:
         
         Args:
             username: Username
-            password: Password
+            password: Password (if None, will be automatically generated)
             firstname: First name
             lastname: Last name
             email: Email address
@@ -555,8 +555,8 @@ def main():
                       help='DAG ID to trigger')
     parser.add_argument('--username', type=str, default="admin",
                       help='Username for create-user action')
-    parser.add_argument('--password', type=str, default="admin",
-                      help='Password for create-user action')
+    parser.add_argument('--password', type=str, default=None,
+                      help='Password for create-user action (if None, will be automatically generated)')
     parser.add_argument('--email', type=str, default="admin@example.com",
                       help='Email for create-user action')
     
