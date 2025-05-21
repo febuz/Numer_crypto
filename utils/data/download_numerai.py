@@ -10,20 +10,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 # Import tournament configuration
-try:
-    from config.tournament_config import get_tournament_name, get_tournament_endpoint, TOURNAMENT_NAME
-except ImportError:
-    # Define defaults if config is not available
-    TOURNAMENT_NAME = "crypto"
-    def get_tournament_name():
-        return TOURNAMENT_NAME
-    def get_tournament_endpoint(key):
-        endpoints = {
-            "train_targets": f"{TOURNAMENT_NAME}/v1.0/train_targets.parquet", 
-            "live_universe": f"{TOURNAMENT_NAME}/v1.0/live_universe.parquet",
-            "train_data": f"{TOURNAMENT_NAME}/v1.0/train.parquet"
-        }
-        return endpoints.get(key)
+from config.tournament_config import get_tournament_name, get_tournament_endpoint, TOURNAMENT_NAME
 
 # Try to import numerapi
 try:

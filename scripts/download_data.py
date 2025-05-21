@@ -17,13 +17,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import tournament configuration
-try:
-    from config.tournament_config import get_tournament_name, TOURNAMENT_NAME
-except ImportError:
-    # Define defaults if config is not available
-    TOURNAMENT_NAME = "crypto"
-    def get_tournament_name():
-        return TOURNAMENT_NAME
+from config.tournament_config import get_tournament_name, TOURNAMENT_NAME
 
 # Simple logging setup
 logging.basicConfig(level=logging.INFO, 
