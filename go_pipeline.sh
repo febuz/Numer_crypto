@@ -213,15 +213,20 @@ run_airflow_pipeline() {
     
     # Check if Airflow is properly installed
     check_airflow_installed() {
-        source "$AIRFLOW_VENV_DIR/bin/activate"
-        local version=$(airflow version 2>/dev/null)
-        deactivate
-        
-        if [[ "$version" == "3.0.1" ]]; then
-            echo -e "${GREEN}Airflow 3.0.1 is installed${NC}"
-            return 0
+        if [ -d "$AIRFLOW_VENV_DIR" ]; then
+            source "$AIRFLOW_VENV_DIR/bin/activate"
+            local version=$(airflow version 2>/dev/null)
+            deactivate
+            
+            if [[ "$version" == "3.0.1" ]]; then
+                echo -e "${GREEN}Airflow 3.0.1 is installed${NC}"
+                return 0
+            else
+                echo -e "${YELLOW}Airflow 3.0.1 is not properly installed (found: $version)${NC}"
+                return 1
+            fi
         else
-            echo -e "${YELLOW}Airflow 3.0.1 is not properly installed (found: $version)${NC}"
+            echo -e "${YELLOW}Airflow environment directory not found: $AIRFLOW_VENV_DIR${NC}"
             return 1
         fi
     }
@@ -252,12 +257,25 @@ run_airflow_pipeline() {
     if ! check_airflow_installed; then
         echo -e "${BLUE}Installing Airflow 3.0.1...${NC}"
         
-        # Source the environment setup script with USE_AIRFLOW=true
-        USE_AIRFLOW=true source "$SCRIPT_DIR/scripts/environment/setup_env.sh"
-        
-        if ! check_airflow_installed; then
-            echo -e "${RED}Failed to install Airflow 3.0.1${NC}"
-            return 1
+        # Check if we're skipping environment setup
+        if [ "$SKIP_ENV_SETUP" = true ]; then
+            echo -e "${YELLOW}Environment setup is skipped (--skip-env-setup specified)${NC}"
+            echo -e "${BLUE}Creating required directories...${NC}"
+            
+            # Just create necessary directories without running setup_env.sh
+            mkdir -p "$AIRFLOW_HOME"
+            mkdir -p "$AIRFLOW_HOME/dags"
+            mkdir -p "$AIRFLOW_HOME/logs"
+            mkdir -p "$AIRFLOW_HOME/plugins"
+            return 0
+        else
+            # Source the environment setup script with USE_AIRFLOW=true
+            USE_AIRFLOW=true source "$SCRIPT_DIR/scripts/environment/setup_env.sh"
+            
+            if ! check_airflow_installed; then
+                echo -e "${RED}Failed to install Airflow 3.0.1${NC}"
+                return 1
+            fi
         fi
     fi
     
