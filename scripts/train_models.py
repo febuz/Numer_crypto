@@ -22,10 +22,10 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Default directories
-PROCESSED_DATA_DIR = "/numer_crypto_temp/data/processed"
+PROCESSED_DATA_DIR = "/media/knight2/EDB/numer_crypto_temp/data/processed"
 TRAIN_DIR = os.path.join(PROCESSED_DATA_DIR, "train")
 VALIDATION_DIR = os.path.join(PROCESSED_DATA_DIR, "validation")
-MODELS_DIR = "/numer_crypto_temp/models"
+MODELS_DIR = "/media/knight2/EDB/numer_crypto_temp/models"
 
 def train_simple_model(X_train, y_train, use_gpu=False, parallel=False):
     """Train a simple model for demonstration purposes"""
@@ -103,6 +103,10 @@ def main():
     parser = argparse.ArgumentParser(description='Train models for Numerai Crypto')
     parser.add_argument('--use-gpu', action='store_true', help='Use GPU for training')
     parser.add_argument('--parallel', action='store_true', help='Use parallel processing')
+    parser.add_argument('--include-h2o', action='store_true', help='Include H2O models in training')
+    parser.add_argument('--h2o-time-limit', type=int, default=14400, help='Time limit for H2O models in seconds')
+    parser.add_argument('--model-type', type=str, default='simple', help='Model type to train: simple, lightgbm, xgboost, h2o, or all')
+    parser.add_argument('--multi-train', action='store_true', help='Train multiple model variants')
     
     args = parser.parse_args()
     

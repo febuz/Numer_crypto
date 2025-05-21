@@ -20,13 +20,13 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Default directories
-RAW_DATA_DIR = "/numer_crypto_temp/data/raw"
-PROCESSED_DATA_DIR = "/numer_crypto_temp/data/processed"
+RAW_DATA_DIR = "/media/knight2/EDB/numer_crypto_temp/data/raw"
+PROCESSED_DATA_DIR = "/media/knight2/EDB/numer_crypto_temp/data/processed"
 TRAIN_DIR = os.path.join(PROCESSED_DATA_DIR, "train")
 VALIDATION_DIR = os.path.join(PROCESSED_DATA_DIR, "validation")
 PREDICTION_DIR = os.path.join(PROCESSED_DATA_DIR, "prediction")
 
-def process_numerai_data(use_historical=False):
+def process_numerai_data(use_historical=False, skip_historical=False, pit_date=None):
     """Process Numerai data"""
     logger.info("Processing Numerai data...")
     
@@ -41,7 +41,7 @@ def process_numerai_data(use_historical=False):
     
     return numerai_data
 
-def process_yiedl_data(use_historical=False):
+def process_yiedl_data(use_historical=False, skip_historical=False, pit_date=None):
     """Process Yiedl data"""
     logger.info("Processing Yiedl data...")
     
@@ -75,6 +75,7 @@ def create_data_splits(numerai_data, yiedl_data):
     os.makedirs(TRAIN_DIR, exist_ok=True)
     os.makedirs(VALIDATION_DIR, exist_ok=True)
     os.makedirs(PREDICTION_DIR, exist_ok=True)
+    os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
     
     # Merge data (simple example - in a real scenario this would be more complex)
     merged_data = pd.merge(
@@ -113,29 +114,51 @@ def create_data_splits(numerai_data, yiedl_data):
 def main():
     parser = argparse.ArgumentParser(description='Process data for Numerai Crypto')
     parser.add_argument('--use-historical', action='store_true', help='Use historical data')
+    parser.add_argument('--skip-historical', action='store_true', help='Skip downloading historical data')
+    parser.add_argument('--pit', type=str, help='Point-in-time date for data (format: YYYYMMDD)')
+    parser.add_argument('--force', action='store_true', help='Force reprocessing even if files exist')
     
     args = parser.parse_args()
     
     logger.info("Starting process_data.py")
     
     # Process Numerai data
-    numerai_data = process_numerai_data(args.use_historical)
+    numerai_data = process_numerai_data(
+        use_historical=args.use_historical,
+        skip_historical=args.skip_historical,
+        pit_date=args.pit
+    )
     if numerai_data is False:
         logger.error("Numerai data processing failed")
         return False
     
     # Process Yiedl data
-    yiedl_data = process_yiedl_data(args.use_historical)
+    yiedl_data = process_yiedl_data(
+        use_historical=args.use_historical,
+        skip_historical=args.skip_historical,
+        pit_date=args.pit
+    )
     if yiedl_data is False:
         logger.error("Yiedl data processing failed")
         return False
     
-    # Create data splits
-    if create_data_splits(numerai_data, yiedl_data):
-        logger.info("Data splits created successfully")
+    # Check for force flag or if files don't exist
+    crypto_train_file = os.path.join(PROCESSED_DATA_DIR, "crypto_train.parquet")
+    crypto_test_file = os.path.join(PROCESSED_DATA_DIR, "crypto_test.parquet")
+    crypto_live_file = os.path.join(PROCESSED_DATA_DIR, "crypto_live.parquet")
+    
+    if args.force or not (os.path.exists(crypto_train_file) and 
+                       os.path.exists(crypto_test_file) and
+                       os.path.exists(crypto_live_file)):
+        # Create data splits
+        if create_data_splits(numerai_data, yiedl_data):
+            logger.info("Data splits created successfully")
+        else:
+            logger.error("Data splits creation failed")
+            return False
     else:
-        logger.error("Data splits creation failed")
-        return False
+        logger.info("Using existing processed data files")
+        return True
     
     logger.info("Data processing completed successfully")
     return True

@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Default directories
-PROCESSED_DATA_DIR = "/numer_crypto_temp/data/processed"
+PROCESSED_DATA_DIR = "/media/knight2/EDB/numer_crypto_temp/data/processed"
 TRAIN_DIR = os.path.join(PROCESSED_DATA_DIR, "train")
 VALIDATION_DIR = os.path.join(PROCESSED_DATA_DIR, "validation")
 PREDICTION_DIR = os.path.join(PROCESSED_DATA_DIR, "prediction")
@@ -105,6 +105,9 @@ def process_dataset(input_file, output_file, generate_ts_features=True):
 def main():
     parser = argparse.ArgumentParser(description='Generate features for Numerai Crypto')
     parser.add_argument('--timeseries', action='store_true', help='Generate time series features')
+    parser.add_argument('--max-features', type=int, default=10000, help='Maximum number of features to generate')
+    parser.add_argument('--cache', action='store_true', help='Cache intermediate results')
+    parser.add_argument('--use-gpu', action='store_true', help='Use GPU for feature generation if available')
     
     args = parser.parse_args()
     
