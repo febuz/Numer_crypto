@@ -75,26 +75,33 @@ def create_submission(output_dir=None, prediction_file=None, round_number=None):
         logger.error(f"Error loading prediction file: {e}")
         return None
     
-    # Check if predictions have the required columns
-    required_columns = {'Symbol', 'Prediction'}
+    # Check if predictions have the required columns (lowercase for Numerai)
+    required_columns = {'symbol', 'prediction'}
     if not all(col in predictions.columns for col in required_columns):
         # Try to create the required columns from existing ones
-        if 'symbol' in predictions.columns and 'Symbol' not in predictions.columns:
-            predictions['Symbol'] = predictions['symbol']
+        if 'Symbol' in predictions.columns and 'symbol' not in predictions.columns:
+            predictions['symbol'] = predictions['Symbol']
+        elif any(col.lower() == 'symbol' for col in predictions.columns):
+            symbol_col = next(col for col in predictions.columns if col.lower() == 'symbol')
+            predictions['symbol'] = predictions[symbol_col]
         
-        if 'prediction' in predictions.columns and 'Prediction' not in predictions.columns:
-            predictions['Prediction'] = predictions['prediction']
+        if 'Prediction' in predictions.columns and 'prediction' not in predictions.columns:
+            predictions['prediction'] = predictions['Prediction']
+        elif any(col.lower() == 'prediction' for col in predictions.columns):
+            pred_col = next(col for col in predictions.columns if col.lower() == 'prediction')
+            predictions['prediction'] = predictions[pred_col]
         
         # Check again after attempting to create the columns
         if not all(col in predictions.columns for col in required_columns):
             logger.error(f"Prediction data is missing required columns: {required_columns}")
+            logger.error(f"Available columns: {list(predictions.columns)}")
             return None
     
-    # Select only the required columns
-    submission_data = predictions[list(required_columns)]
+    # Select only the required columns in the correct order: symbol, prediction
+    submission_data = predictions[['symbol', 'prediction']].copy()
     
     # Format the predictions (ensure predictions are between 0 and 1)
-    submission_data['Prediction'] = submission_data['Prediction'].clip(0, 1)
+    submission_data['prediction'] = submission_data['prediction'].clip(0, 1)
     
     # Create the submission file name
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -111,10 +118,10 @@ def create_submission(output_dir=None, prediction_file=None, round_number=None):
         logger.info(f"Submission file created: {submission_file}")
         
         # Print submission stats
-        symbol_count = len(submission_data['Symbol'].unique())
+        symbol_count = len(submission_data['symbol'].unique())
         logger.info(f"Submission contains predictions for {symbol_count} symbols")
-        logger.info(f"Prediction range: {submission_data['Prediction'].min():.4f} to {submission_data['Prediction'].max():.4f}")
-        logger.info(f"Prediction mean: {submission_data['Prediction'].mean():.4f}")
+        logger.info(f"Prediction range: {submission_data['prediction'].min():.4f} to {submission_data['prediction'].max():.4f}")
+        logger.info(f"Prediction mean: {submission_data['prediction'].mean():.4f}")
         
         return submission_file
     except Exception as e:

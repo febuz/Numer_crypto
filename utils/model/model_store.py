@@ -180,11 +180,49 @@ class ModelStore:
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found: {model_path}")
         
-        # Load model with error handling
+        # Load model with error handling - use appropriate method based on model type
         try:
-            with open(model_path, 'rb') as f:
-                model = pickle.load(f)
-            return model, model_entry
+            model_type = model_entry.get("model_type", "").lower()
+            
+            if "h2o" in model_type:
+                # H2O models need special loading
+                try:
+                    import h2o
+                    # Initialize H2O if not running
+                    cluster = h2o.cluster()
+                    if cluster is None or not cluster.is_running():
+                        # Set environment variables to force Java to use NVMe disk
+                        import os
+                        os.environ['TMPDIR'] = '/media/knight2/EDB/tmp/h2o'
+                        os.environ['TMP'] = '/media/knight2/EDB/tmp/h2o'
+                        os.environ['TEMP'] = '/media/knight2/EDB/tmp/h2o'
+                        os.environ['JAVA_OPTS'] = '-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o'
+                        os.environ['_JAVA_OPTIONS'] = '-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o'
+                        
+                        # Ensure temp directory exists
+                        os.makedirs('/media/knight2/EDB/tmp/h2o', mode=0o755, exist_ok=True)
+                        
+                        h2o.init(
+                            nthreads=1, 
+                            max_mem_size="2G", 
+                            verbose=False, 
+                            ice_root="/media/knight2/EDB/tmp/h2o",
+                            jvm_custom_args=["-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o"]
+                        )
+                    
+                    # Load H2O model
+                    model = h2o.load_model(model_path)
+                    logger.info(f"Successfully loaded H2O model from {model_path}")
+                    return model, model_entry
+                except Exception as h2o_error:
+                    logger.error(f"Error loading H2O model from {model_path}: {h2o_error}")
+                    return None, model_entry
+            else:
+                # Standard pickle loading for other models
+                with open(model_path, 'rb') as f:
+                    model = pickle.load(f)
+                return model, model_entry
+                
         except Exception as e:
             logger.error(f"Error loading model from {model_path}: {e}")
             # If model file is corrupt or otherwise unloadable, return None

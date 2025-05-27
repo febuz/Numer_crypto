@@ -236,8 +236,7 @@ def run_gravitator(args: argparse.Namespace) -> Dict[str, Any]:
     logger = setup_logging(
         name="gravitator_integration",
         level=logging.INFO,
-        create_file=True,
-        log_to_markdown=False
+        create_file=True
     )
     
     logger.info("Starten Data Gravitator integratie...")
@@ -246,7 +245,7 @@ def run_gravitator(args: argparse.Namespace) -> Dict[str, Any]:
     params = {
         'base_dir': str(base_dir),
         'tournament': tournament,
-        'models_dir': args.gravitator_models_dir if hasattr(args, 'gravitator_models_dir') and args.gravitator_models_dir else str(base_dir / 'prediction'),
+        'models_dir': args.gravitator_models_dir if hasattr(args, 'gravitator_models_dir') and args.gravitator_models_dir else str(base_dir / 'predictions'),
         'output_dir': args.gravitator_output_dir if hasattr(args, 'gravitator_output_dir') and args.gravitator_output_dir else str(base_dir / 'gravitator'),
         'target_col': args.gravitator_target_col if hasattr(args, 'gravitator_target_col') else 'target',
         'ensemble_method': args.gravitator_ensemble_method if hasattr(args, 'gravitator_ensemble_method') else 'mean_rank',
@@ -296,7 +295,6 @@ def run_gravitator(args: argparse.Namespace) -> Dict[str, Any]:
         
         # Stel de Data Gravitator in
         gravitator = DataGravitator(
-            base_dir=params['base_dir'],
             output_dir=params['output_dir'],
             log_level=logging.INFO,
             min_ic_threshold=params['min_ic'],

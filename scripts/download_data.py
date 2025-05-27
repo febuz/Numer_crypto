@@ -60,64 +60,54 @@ def download_numerai_data(include_historical=False, pit_date=None, force=False):
             logger.info(f"Creating symlinks in {RAW_DATA_DIR} for compatibility")
             success = False
             
+            def create_or_update_symlink(source_path, target_path):
+                """Helper to create or update a symlink with proper error handling"""
+                # Skip if source doesn't exist
+                if not os.path.exists(source_path):
+                    logger.warning(f"Source file doesn't exist, skipping symlink: {source_path}")
+                    return False
+                
+                # Handle existing symlink or file
+                if os.path.exists(target_path) or os.path.islink(target_path):
+                    try:
+                        # Force remove the existing symlink/file
+                        os.remove(target_path)
+                        logger.info(f"Removed existing symlink/file: {target_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove existing symlink/file {target_path}: {e}")
+                        return False
+                
+                # Create the new symlink
+                try:
+                    os.symlink(source_path, target_path)
+                    logger.info(f"Created symlink: {target_path} -> {source_path}")
+                    return True
+                except Exception as e:
+                    logger.error(f"Failed to create symlink {target_path}: {e}")
+                    return False
+            
             if 'train_data' in result:
                 symlink_path = os.path.join(RAW_DATA_DIR, "numerai_train.parquet")
-                if os.path.exists(symlink_path):
-                    try:
-                        os.unlink(symlink_path)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove existing symlink {symlink_path}: {e}")
-                try:
-                    os.symlink(result['train_data'], symlink_path)
-                    logger.info(f"Created symlink: {symlink_path} -> {result['train_data']}")
+                if create_or_update_symlink(result['train_data'], symlink_path):
                     success = True
-                except Exception as e:
-                    logger.error(f"Failed to create symlink {symlink_path}: {e}")
             else:
                 logger.warning("No train_data file available, skipping symlink creation")
                 
             if 'train_targets' in result:
                 symlink_path = os.path.join(RAW_DATA_DIR, "numerai_targets.parquet")
-                if os.path.exists(symlink_path):
-                    try:
-                        os.unlink(symlink_path)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove existing symlink {symlink_path}: {e}")
-                try:
-                    os.symlink(result['train_targets'], symlink_path)
-                    logger.info(f"Created symlink: {symlink_path} -> {result['train_targets']}")
+                if create_or_update_symlink(result['train_targets'], symlink_path):
                     success = True
-                except Exception as e:
-                    logger.error(f"Failed to create symlink {symlink_path}: {e}")
                 
             if 'live_universe' in result:
-                symlink_path = os.path.join(RAW_DATA_DIR, f"numerai_live_{result['date_str']}.parquet")
-                if os.path.exists(symlink_path):
-                    try:
-                        os.unlink(symlink_path)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove existing symlink {symlink_path}: {e}")
-                try:
-                    os.symlink(result['live_universe'], symlink_path)
-                    logger.info(f"Created symlink: {symlink_path} -> {result['live_universe']}")
+                # Create dated symlink
+                dated_symlink_path = os.path.join(RAW_DATA_DIR, f"numerai_live_{result['date_str']}.parquet")
+                if create_or_update_symlink(result['live_universe'], dated_symlink_path):
                     success = True
-                except Exception as e:
-                    logger.error(f"Failed to create symlink {symlink_path}: {e}")
                 
-            # Also create the standard numerai_live.parquet symlink for the pipeline
-            standard_live_path = os.path.join(RAW_DATA_DIR, "numerai_live.parquet")
-            if os.path.exists(standard_live_path):
-                try:
-                    os.unlink(standard_live_path)
-                except Exception as e:
-                    logger.warning(f"Failed to remove existing symlink {standard_live_path}: {e}")
-            
-            try:
-                os.symlink(result['live_universe'], standard_live_path)
-                logger.info(f"Created standard live symlink: {standard_live_path} -> {result['live_universe']}")
-                success = True
-            except Exception as e:
-                logger.error(f"Failed to create standard live symlink {standard_live_path}: {e}")
+                # Also create the standard numerai_live.parquet symlink for the pipeline
+                standard_live_path = os.path.join(RAW_DATA_DIR, "numerai_live.parquet")
+                if create_or_update_symlink(result['live_universe'], standard_live_path):
+                    success = True
             
             # Consider download successful if we have at least the targets and live files
             if 'train_targets' in result and 'live_universe' in result and success:

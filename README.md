@@ -151,4 +151,6 @@ python scripts/fix_submission_format.py --all
 
 Data and model artifacts are stored outside the repository in `/media/knight2/EDB/numer_crypto_temp/`.
 
-For more detailed documentation, see the [CODE_OVERVIEW.md](CODE_OVERVIEW.md) file.
+For more detailed documentation, see:
+- [CODE_OVERVIEW.md](CODE_OVERVIEW.md) - General code structure and overview
+- [PIPELINE_README.md](pipeline_readme.md) - Detailed pipeline options and flags

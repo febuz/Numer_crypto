@@ -257,20 +257,159 @@ class PipelineUtils:
                 'exists': False
             }
             
+        # Check merged dataset files (processed data)
+        try:
+            import glob
+            
+            # Look for merged training file - check multiple patterns
+            merged_files = []
+            # First look for standard pattern files
+            for ext in [".parquet", ".csv"]:
+                merged_files.extend(glob.glob(os.path.join(f"{DATA_DIR}/processed", f"*train*merged*{ext}")))
+                
+            # Also check for crypto_train.parquet which is the standard expected file
+            crypto_train = os.path.join(f"{DATA_DIR}/processed", "crypto_train.parquet")
+            if os.path.exists(crypto_train):
+                merged_files.append(crypto_train)
+            
+            if merged_files:
+                # Sort by modification time to get the latest
+                latest_merged_file = max(merged_files, key=os.path.getmtime)
+                file_size = os.path.getsize(latest_merged_file)
+                
+                result['files']['merged_train'] = {
+                    'exists': True,
+                    'path': latest_merged_file,
+                    'size': file_size,
+                    'size_human': f"{file_size / (1024*1024):.2f} MB"
+                }
+                
+                # Check column count
+                import pandas as pd
+                MIN_COLUMNS = 3000
+                
+                try:
+                    # Try to load file header only for column count
+                    if latest_merged_file.endswith('.parquet'):
+                        df_sample = pd.read_parquet(latest_merged_file, engine='pyarrow')
+                    else:
+                        df_sample = pd.read_csv(latest_merged_file, nrows=1)
+                    
+                    num_columns = len(df_sample.columns)
+                    result['files']['merged_train']['columns'] = num_columns
+                    
+                    # Warning if columns are less than minimum expected
+                    if num_columns < MIN_COLUMNS:
+                        result['files']['merged_train']['column_warning'] = True
+                        result['files']['merged_train']['column_warning_msg'] = f"Expected at least {MIN_COLUMNS} columns, found only {num_columns}"
+                        result['success'] = False
+                        logger.error(f"ERROR: Merged training file has only {num_columns} columns, but should have at least {MIN_COLUMNS}. This indicates the data processing pipeline failed to properly merge Numerai and Yiedl data.")
+                except Exception as e:
+                    logger.error(f"Error checking merged dataset column count: {str(e)}")
+                    result['files']['merged_train']['column_error'] = str(e)
+            else:
+                result['files']['merged_train'] = {
+                    'exists': False,
+                    'error': "No merged training file found"
+                }
+                result['success'] = False
+                logger.error("ERROR: No merged training file found. The data processing pipeline has likely failed.")
+        except Exception as e:
+            logger.error(f"Error checking merged dataset files: {str(e)}")
+            result['files']['merged_train'] = {
+                'exists': False,
+                'error': str(e)
+            }
+            
         return result
+        
+    @staticmethod
+    def validate_merged_dataset():
+        """
+        Validate that the merged dataset exists and has the required number of columns.
+        
+        Returns:
+            bool: True if validation passes, False otherwise
+        """
+        import os
+        import pandas as pd
+        import glob
+        from pathlib import Path
+        
+        # Define data directories
+        PROCESSED_DIR = f"{DATA_DIR}/processed"
+        
+        # Look for merged training file - check multiple patterns
+        merged_files = []
+        # First look for standard pattern files
+        for ext in [".parquet", ".csv"]:
+            merged_files.extend(glob.glob(os.path.join(PROCESSED_DIR, f"*train*merged*{ext}")))
+            
+        # Also check for crypto_train.parquet which is the standard expected file
+        crypto_train = os.path.join(PROCESSED_DIR, "crypto_train.parquet")
+        if os.path.exists(crypto_train):
+            merged_files.append(crypto_train)
+        
+        if not merged_files:
+            logger.error("ERROR: No merged training file found. The data processing pipeline has failed.")
+            return False
+            
+        # Sort by modification time to get the latest
+        latest_merged_file = max(merged_files, key=os.path.getmtime)
+        logger.info(f"Found latest merged training file: {latest_merged_file}")
+        
+        # Check file size
+        file_size_mb = os.path.getsize(latest_merged_file) / (1024 * 1024)
+        logger.info(f"File size: {file_size_mb:.2f} MB")
+        
+        # Required minimum 
+        MIN_COLUMNS = 3000
+        
+        # Check column count
+        try:
+            # Try to read column names only to limit memory usage
+            if latest_merged_file.endswith('.parquet'):
+                df_sample = pd.read_parquet(latest_merged_file, engine='pyarrow')
+            else:
+                df_sample = pd.read_csv(latest_merged_file, nrows=1)
+            
+            num_columns = len(df_sample.columns)
+            logger.info(f"Number of columns: {num_columns}")
+            
+            # Validate column count - merged file should have at least 3000 columns
+            if num_columns < MIN_COLUMNS:
+                error_msg = f"ERROR: Merged training file has only {num_columns} columns, but should have at least {MIN_COLUMNS}. This indicates the data processing pipeline failed to properly merge Numerai and Yiedl data."
+                logger.error(error_msg)
+                print(error_msg, file=sys.stderr)
+                return False
+            
+            # Check for target column
+            if 'target' not in df_sample.columns:
+                error_msg = "ERROR: Merged training file does not contain a 'target' column."
+                logger.error(error_msg)
+                print(error_msg, file=sys.stderr)
+                return False
+            
+            logger.info("Merged training file validation successful.")
+            return True
+            
+        except Exception as e:
+            error_msg = f"ERROR: Failed to validate merged training file: {str(e)}"
+            logger.error(error_msg)
+            print(error_msg, file=sys.stderr)
+            return False
 
 # Command-line interface
 def main():
     parser = argparse.ArgumentParser(description='Pipeline Utilities for Numerai Crypto')
     parser.add_argument('--action', type=str, required=True, 
-                        choices=['create-progress', 'update-progress', 'download-data', 'verify-data'],
+                        choices=['create-progress', 'update-progress', 'download-data', 'verify-data', 'validate-merged-dataset'],
                         help='Action to perform')
     parser.add_argument('--stage', type=str, help='Pipeline stage for update-progress')
     parser.add_argument('--status', type=str, help='Status value for update-progress')
     parser.add_argument('--details', type=str, help='Details message for update-progress')
     parser.add_argument('--progress', type=float, help='Progress percentage for update-progress')
     parser.add_argument('--status-file', type=str, help='Path to status file')
-# Removed numerai-only argument option
     parser.add_argument('--skip-historical', action='store_true', help='Skip downloading historical data')
     
     args = parser.parse_args()
@@ -299,6 +438,14 @@ def main():
         result = PipelineUtils.verify_data_files()
         print(json.dumps(result, indent=2))
         return 0 if result['success'] else 1
+        
+    elif args.action == 'validate-merged-dataset':
+        result = PipelineUtils.validate_merged_dataset()
+        if result:
+            print("VALID: Merged dataset validation passed.")
+        else:
+            print("ERROR: Merged dataset validation failed. Check logs for details.", file=sys.stderr)
+        return 0 if result else 1
     
     return 0
 

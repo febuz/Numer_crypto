@@ -83,6 +83,8 @@ H2O_CONFIG = {
     'gpu_id': list(range(HARDWARE_CONFIG['gpu_count'])),  # Use all GPUs
     'allow_large_jvms': True,                  # Allow large heap sizes
     'h2o_cluster_startup_timeout': 600,        # Longer timeout for big clusters
+    'ice_root': '/media/knight2/EDB/tmp/h2o', # Use correct disk for temp files
+    'jvm_custom_args': ['-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o'], # Force Java temp dir
 }
 
 # Model parameters - optimized for GPUs and high memory
@@ -117,4 +119,55 @@ LIGHTGBM_PARAMS = {
     'objective': 'regression',     # For regression tasks
     'metric': 'rmse',              # Evaluation metric
     'n_estimators': 1000,          # Number of trees
+}
+
+# Feature generation configuration
+FEATURE_GENERATION_CONFIG = {
+    # Column limits - very high to avoid bottlenecks
+    'max_columns': 5000000,           # 5M columns - no practical limit
+    'max_columns_limited': 10000,     # For limited feature mode
+    'max_columns_moderate': 100000,   # For moderate feature mode
+    
+    # Feature types
+    'window_sizes': [7, 14, 28, 56],  # Rolling windows
+    'lag_periods': [1, 3, 7, 14, 28], # Lag features
+    'ewm_spans': [5, 10, 20, 40],     # Exponential weighted moving averages
+    
+    # Limited feature configuration (for max_features < 1000)
+    'limited_config': {
+        'window_sizes': [14],
+        'lag_periods': [1, 7],
+        'ewm_spans': [10],
+        'max_columns': 10000,
+    },
+    
+    # Moderate feature configuration (for max_features < 5000)
+    'moderate_config': {
+        'window_sizes': [7, 14],
+        'lag_periods': [1, 3, 7],
+        'ewm_spans': [10, 20],
+        'max_columns': 100000,
+    },
+    
+    # Data columns to exclude from feature generation
+    'excluded_columns': {
+        'date_col': 'date',
+        'target_cols': ['target'],
+        'id_cols': ['era', 'id', 'symbol'],
+    },
+    
+    # GPU processing configuration
+    'gpu_config': {
+        'memory_cleanup_interval': 50,  # Clean memory every N symbols
+        'progress_log_interval': 10,    # Log progress every N symbols
+        'batch_processing': True,       # Process in batches for memory efficiency
+        'timeout_minutes': 30,          # Timeout per GPU worker
+    },
+    
+    # Multiprocessing configuration
+    'multiprocessing_config': {
+        'start_method': 'spawn',        # Required for CUDA compatibility
+        'max_workers': 3,               # Number of GPU workers
+        'timeout_seconds': 1800,        # 30 minutes timeout per worker
+    }
 }
