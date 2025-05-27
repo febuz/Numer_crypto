@@ -149,8 +149,4 @@ python scripts/fix_submission_format.py --all
 - `tests/`: Test scripts and validation tools
 - `utils/`: Utility functions (GPU, Memory, Threading, etc.)
 
-Data and model artifacts are stored outside the repository in `/media/knight2/EDB/numer_crypto_temp/`.
-
-For more detailed documentation, see:
-- [CODE_OVERVIEW.md](CODE_OVERVIEW.md) - General code structure and overview
-- [PIPELINE_README.md](pipeline_readme.md) - Detailed pipeline options and flags
+Data and model artifacts are stored outside the repository in `set to your folder in the config files`.
