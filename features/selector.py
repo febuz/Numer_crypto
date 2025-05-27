@@ -96,8 +96,24 @@ class FeatureSelector:
         
         try:
             logger.info(f"Initializing H2O with max_mem_size={max_mem_size}")
-            h2o.init(max_mem_size=max_mem_size)
-            logger.info(f"H2O initialized successfully. Version: {h2o.__version__}")
+            
+            # Set environment variables to force H2O/Java to use NVMe disk
+            import os
+            os.environ['TMPDIR'] = '/media/knight2/EDB/tmp/h2o'
+            os.environ['TMP'] = '/media/knight2/EDB/tmp/h2o'
+            os.environ['TEMP'] = '/media/knight2/EDB/tmp/h2o'
+            os.environ['JAVA_OPTS'] = '-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o'
+            os.environ['_JAVA_OPTIONS'] = '-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o'
+            
+            # Ensure temp directory exists
+            os.makedirs('/media/knight2/EDB/tmp/h2o', mode=0o755, exist_ok=True)
+            
+            h2o.init(
+                max_mem_size=max_mem_size, 
+                ice_root="/media/knight2/EDB/tmp/h2o",
+                jvm_custom_args=["-Djava.io.tmpdir=/media/knight2/EDB/tmp/h2o"]
+            )
+            logger.info(f"H2O initialized successfully with NVMe temp directory. Version: {h2o.__version__}")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize H2O: {str(e)}")

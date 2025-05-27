@@ -10,20 +10,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 # Import tournament configuration
-try:
-    from config.tournament_config import get_tournament_name, get_tournament_endpoint, TOURNAMENT_NAME
-except ImportError:
-    # Define defaults if config is not available
-    TOURNAMENT_NAME = "crypto"
-    def get_tournament_name():
-        return TOURNAMENT_NAME
-    def get_tournament_endpoint(key):
-        endpoints = {
-            "train_targets": f"{TOURNAMENT_NAME}/v1.0/train_targets.parquet", 
-            "live_universe": f"{TOURNAMENT_NAME}/v1.0/live_universe.parquet",
-            "train_data": f"{TOURNAMENT_NAME}/v1.0/train.parquet"
-        }
-        return endpoints.get(key)
+from config.tournament_config import get_tournament_name, get_tournament_endpoint, TOURNAMENT_NAME
 
 # Try to import numerapi
 try:
@@ -130,11 +117,19 @@ def download_numerai_crypto_data(numerai_dir, api_key=None, api_secret=None, pit
         except Exception as train_error:
             logger.warning(f"Error downloading train data with standard path: {train_error}")
             
-            # Try alternate path format
+            # Try alternate path format - check if endpoint is available
             try:
                 logger.info("Trying alternate train data path format")
-                napi.download_dataset(get_tournament_endpoint("train_data_alt"), train_data_file)
-                logger.info("Successfully downloaded train data using alternate path")
+                alt_endpoint = get_tournament_endpoint("train_data_alt")
+                if alt_endpoint:
+                    napi.download_dataset(alt_endpoint, train_data_file)
+                    logger.info("Successfully downloaded train data using alternate path")
+                else:
+                    # Try a direct request for features.parquet if endpoint not in config
+                    direct_endpoint = f"{TOURNAMENT_NAME}/v1.0/features.parquet"
+                    logger.info(f"Trying direct features endpoint: {direct_endpoint}")
+                    napi.download_dataset(direct_endpoint, train_data_file)
+                    logger.info("Successfully downloaded train data using direct features endpoint")
             except Exception as alt_error:
                 logger.error(f"Error downloading train data with alternate path: {alt_error}")
                 logger.warning("Could not download train data, submission may still work with other files")
