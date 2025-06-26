@@ -24,6 +24,11 @@ from utils.feature.feature_store import FeatureStore
 from utils.feature.extractor import FeatureExtractor
 from utils.log_utils import setup_logging
 
+# Import PyTorch utilities
+import torch
+import torch.nn as nn
+from utils.model.predict import predict_with_model
+
 # Setup logging
 logger = setup_logging("generate_predictions")
 
@@ -236,30 +241,10 @@ def generate_real_predictions(model_id=None, feature_set_id=None, symbols=None):
             
             logger.info(f"Final feature count for prediction: {len(feature_cols)}")
             
-            # Robust model-specific prediction handling
+            # Use the unified prediction utility to handle all model types
             try:
-                if 'xgboost' in model_type.lower():
-                    # XGBoost prediction - handle both sklearn-style and native XGBoost models
-                    if hasattr(model, 'predict') and hasattr(model, 'get_params'):
-                        # sklearn-style XGBoost
-                        predictions = model.predict(X.to_numpy())
-                    else:
-                        # Native XGBoost - needs DMatrix
-                        import xgboost as xgb
-                        X_dmatrix = xgb.DMatrix(X.to_numpy())
-                        predictions = model.predict(X_dmatrix)
-                elif 'lightgbm' in model_type.lower():
-                    # LightGBM prediction - expects numpy array
-                    predictions = model.predict(X.to_numpy(), predict_disable_shape_check=True)
-                elif 'h2o' in model_type.lower():
-                    # H2O prediction
-                    import h2o
-                    h2o_frame = h2o.H2OFrame(X.to_numpy())
-                    h2o_frame.columns = [f"feature_{i}" for i in range(X.shape[1])]
-                    predictions = model.predict(h2o_frame).as_data_frame().values.flatten()
-                else:
-                    # Generic sklearn-style prediction - convert to numpy
-                    predictions = model.predict(X.to_numpy())
+                logger.info(f"Making predictions using model type: {model_type}")
+                predictions = predict_with_model(model, X, model_type, model_metadata)
                 
                 logger.info(f"Successfully generated {len(predictions)} predictions using {model_type} model")
                 
@@ -269,15 +254,9 @@ def generate_real_predictions(model_id=None, feature_set_id=None, symbols=None):
                 try:
                     logger.info("Attempting enhanced fallback prediction method...")
                     
-                    # Check if this might be an XGBoost model that needs DMatrix
-                    if 'xgboost' in str(type(model)).lower() or 'Booster' in str(type(model)):
-                        logger.info("Detected XGBoost model in fallback, using DMatrix...")
-                        import xgboost as xgb
-                        X_dmatrix = xgb.DMatrix(X.to_numpy())
-                        predictions = model.predict(X_dmatrix)
-                    else:
-                        # Standard sklearn-style prediction
-                        predictions = model.predict(X.to_numpy())
+                    # Try prediction with auto-detection of model type
+                    logger.info("Using fallback prediction with auto-detection...")
+                    predictions = predict_with_model(model, X)
                     
                     logger.info("Enhanced fallback prediction successful")
                 except Exception as fallback_error:
@@ -449,6 +428,41 @@ def generate_default_features():
     logger.info(f"Created default feature registry with {len(feature_sets)} feature sets")
     return feature_sets[0]["id"]
 
+def register_classes():
+    """Register necessary model classes to ensure proper loading"""
+    # Define the PyTorch model class needed for loading saved models
+    class SimpleNeuralNet(nn.Module):
+        """Simple feedforward neural network for regression"""
+        def __init__(self, input_size, hidden_sizes=[512, 256, 128], dropout_rate=0.3):
+            super(SimpleNeuralNet, self).__init__()
+            
+            layers = []
+            prev_size = input_size
+            
+            for hidden_size in hidden_sizes:
+                layers.extend([
+                    nn.Linear(prev_size, hidden_size),
+                    nn.ReLU(),
+                    nn.BatchNorm1d(hidden_size),
+                    nn.Dropout(dropout_rate)
+                ])
+                prev_size = hidden_size
+            
+            # Output layer
+            layers.append(nn.Linear(prev_size, 1))
+            
+            self.network = nn.Sequential(*layers)
+        
+        def forward(self, x):
+            return self.network(x).squeeze()
+            
+    # Register the class in the global namespace so pickle can find it
+    import __main__
+    setattr(__main__, 'SimpleNeuralNet', SimpleNeuralNet)
+    
+    logger.info("Registered model classes for proper loading")
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description='Generate predictions for Numerai Crypto')
     parser.add_argument('--model-id', type=str, help='ID of the model in the model store')
@@ -465,6 +479,9 @@ def main():
     args = parser.parse_args()
     
     logger.info("Starting generate_predictions.py")
+    
+    # Register necessary model classes first to ensure proper loading
+    register_classes()
     
     # Initialize stores
     model_store = ModelStore()

@@ -22,6 +22,15 @@ This repository implements a high-performance pipeline for the Numerai Crypto to
 - **Ensemble Predictions**: Combine multiple models for improved performance
 - **Submission**: Format and submit predictions to Numerai
 
+## Required Dependencies
+
+- **matplotlib** (Required): For visualization and metrics plotting
+- **pandas/polars**: For data manipulation
+- **numpy**: For numerical operations
+- **scikit-learn**: For machine learning utilities
+- **xgboost/lightgbm**: For gradient boosting models
+- **pycaret**: For AutoML functionality
+
 ## Prediction Strategies
 
 1. **Mean Reversion Strategy**: Assumes prices will revert to historical average (RMSE: 0.0893)
@@ -92,15 +101,12 @@ All submissions are automatically formatted to meet Numerai Crypto competition r
    mkdir -p /media/knight2/EDB/numer_crypto_temp/models/checkpoints
    ```
 
-3. Install dependencies:
+3. Set up environment (includes installing all dependencies):
    ```bash
-   pip install -r requirements.txt
+   source scripts/environment/setup_env.sh
    ```
 
-4. Set up environment:
-   ```bash
-   ./setup_environment.sh
-   ```
+   This script creates a virtual environment with all required dependencies, including GPU support if available.
 
 ## Usage
 
@@ -142,11 +148,34 @@ python scripts/fix_submission_format.py --all
 
 - `config/`: Configuration settings
 - `data/`: Data management code
-- `features/`: Feature engineering and selection
-- `models/`: Model implementations
-- `pipelines/`: Pipeline implementations
-- `scripts/`: Executable scripts
+- `scripts/`: Executable scripts and core functionality
+  - `features/`: Feature engineering and selection
+  - `models/`: Model implementations
+  - `utils/`: Utility scripts
 - `tests/`: Test scripts and validation tools
 - `utils/`: Utility functions (GPU, Memory, Threading, etc.)
 
+
+## Temporary Data and Outputs
+
+All generated data, models, and outputs are stored outside the repository in `/media/knight2/EDB/numer_crypto_temp/` with the following structure:
+
+- `data/`: Raw and processed data files
+  - `numerai/`: Numerai competition data
+  - `yiedl/`: Yiedl data files
+- `models/`: Trained model files and checkpoints
+- `metrics/`: Performance metrics and analytics
+- `predictions/`: Generated predictions
+- `submission/`: Formatted submission files
+- `log/`: Log files
+- `feature_importance/`: Feature importance analysis
+- `venv/`: Virtual environments
+
+This separation keeps the repository clean and prevents committing large generated files to version control.
+
+For more detailed documentation, see:
+- [README_SETUP.md](README_SETUP.md) - Detailed setup instructions
+- [README_TESTING_FRAMEWORK.md](README_TESTING_FRAMEWORK.md) - Testing framework documentation
+=======
 Data and model artifacts are stored outside the repository in `set to your folder in the config files`.
+

@@ -24,14 +24,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 EXTERNAL_DATA_DIR = "/media/knight2/EDB/numer_crypto_temp"
 DATA_DIR = os.path.join(EXTERNAL_DATA_DIR, 'data')
 MODELS_DIR = os.path.join(EXTERNAL_DATA_DIR, 'models')
-SUBMISSIONS_DIR = os.path.join(EXTERNAL_DATA_DIR, 'submission')  # Submissions in external dir
+SUBMISSION_DIR = os.path.join(EXTERNAL_DATA_DIR, 'submission')  # Main submission directory (singular)
 LOG_DIR = os.path.join(EXTERNAL_DATA_DIR, 'log')
 
 # Create these directories if they don't exist
 os.makedirs(EXTERNAL_DATA_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
-os.makedirs(SUBMISSIONS_DIR, exist_ok=True)
+os.makedirs(SUBMISSION_DIR, exist_ok=True)  # Main submission directory
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Subdirectories
