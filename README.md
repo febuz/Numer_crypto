@@ -155,6 +155,7 @@ python scripts/fix_submission_format.py --all
 - `tests/`: Test scripts and validation tools
 - `utils/`: Utility functions (GPU, Memory, Threading, etc.)
 
+
 ## Temporary Data and Outputs
 
 All generated data, models, and outputs are stored outside the repository in `/media/knight2/EDB/numer_crypto_temp/` with the following structure:
@@ -175,3 +176,6 @@ This separation keeps the repository clean and prevents committing large generat
 For more detailed documentation, see:
 - [README_SETUP.md](README_SETUP.md) - Detailed setup instructions
 - [README_TESTING_FRAMEWORK.md](README_TESTING_FRAMEWORK.md) - Testing framework documentation
+=======
+Data and model artifacts are stored outside the repository in `set to your folder in the config files`.
+
