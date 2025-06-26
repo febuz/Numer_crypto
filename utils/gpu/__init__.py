@@ -24,3 +24,8 @@ __all__ = [
     'print_gpu_status',
     'is_package_available'
 ]
+# Import LightGBM wrapper
+try:
+    from .lightgbm_wrapper import *
+except ImportError:
+    pass

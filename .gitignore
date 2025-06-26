@@ -1,4 +1,5 @@
 
+# Environment and IDE
 .venv*
 venv*
 py_env*
@@ -7,6 +8,72 @@ __pycache__/
 *.py[cod]
 *$py.class
 .idea/
+.claude/
+.github/
+
+# Data and output directories
 /numer_crypto_temp/
+/numer_crypto_env/
+/numer_crypto_venv/
+/feature_importance/
+/data/numerai/
+/data/yiedl/
+/logs/
+/logs.log
+*.csv
+*.parquet
+
+# Generated outputs and temporary files
+*.log
+*.pkl
+*.h5
+*.bin
+*.joblib
+*.model
+*.zip
+*.gz
+*.tar
+*.tmp
+*.bak
+
+# Documentation
+/docs/
+
+# Unused script directories
+/scripts/create_submission.py
+/scripts/generate_predictions.py
+/scripts/gravitator_integration.py
+/scripts/install_gpu_acceleration.sh
+/scripts/run_conservative_reducer.py
+/scripts/run_cpu_features.py
+/scripts/run_fast_cpu_features.py
+/scripts/run_fast_gpu_lgbm_reducer.py
+/scripts/run_fast_subset_evolution_simple.py
+/scripts/run_gpu_accelerated_reducer.py
+/scripts/run_iterative_feature_evolution.py
+/scripts/run_multi_gpu_features.py
+/scripts/run_smart_gpu_reducer.py
+/scripts/run_ultra_fast_subset_evolution.py
+/scripts/train_models_multi_gpu.py
+
+# Unused feature generators
+/features/dask_feature_generator.py
+/features/feature_reducer.py
+/features/polars_cpu_accelerator.py
+/features/polars_float16_accelerator.py
+/features/polars_gpu_accelerator_fixed.py
+/features/polars_native_accelerator.py
+/features/polars_simple_accelerator.py
+/features/pyarrow_gpu_accelerator.py
+/features/pyspark_feature_generator.py
+
+# Data and submissions directories
+/data/numerai/
+/data/test_crypto_data.parquet
+/feature_importance/
+/h2o_submission_*.csv
+/metrics_report_*.csv
+/numerai_crypto_submission_*.csv
+/submission_*.csv
 
 **/.claude/settings.local.json

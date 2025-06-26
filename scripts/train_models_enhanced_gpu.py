@@ -3,7 +3,7 @@
 Enhanced Multi-GPU Model Training for Numerai Crypto
 
 This script provides maximum GPU utilization with GPU-accelerated models only:
-- LightGBM GPU (3 variants)
+- Azure Synapse LightGBM GPU (3 variants)
 - XGBoost GPU (3 variants) 
 - CatBoost GPU (3 variants)
 - PyTorch Neural Networks (3 variants)
@@ -45,6 +45,11 @@ logger = logging.getLogger()
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["OMP_NUM_THREADS"] = "4"
 
+# Configure Azure Synapse LightGBM by default
+os.environ["USE_AZURE_SYNAPSE_LIGHTGBM"] = "1"
+os.environ["LIGHTGBM_SYNAPSE_MODE"] = "1"
+os.environ["LIGHTGBM_USE_SYNAPSE"] = "1"
+
 # Default paths
 GPU_FEATURES_FILE = "/media/knight2/EDB/numer_crypto_temp/data/features/gpu_features.parquet"
 MODELS_DIR = "/media/knight2/EDB/numer_crypto_temp/models"
@@ -85,12 +90,43 @@ def load_and_prepare_data():
     """Load and prepare data for training"""
     import polars as pl
     
-    if not os.path.exists(GPU_FEATURES_FILE):
-        logger.error(f"GPU features file not found: {GPU_FEATURES_FILE}")
+    # Find the latest feature file in the features directory
+    features_dir = "/media/knight2/EDB/numer_crypto_temp/data/features"
+    
+    # Look for feature files in order of preference
+    feature_patterns = [
+        "fast_evolved_features_*.parquet",      # Fast iterative evolution output (NEWEST)
+        "evolved_features_*.parquet",           # Iterative evolution output
+        "conservative_reduced_*.parquet",       # Conservative reducer output
+        "smart_gpu_reduced_*.parquet",          # Smart GPU reducer output
+        "ultra_fast_reduced_*.parquet",         # Legacy ultra-fast reducer
+        "features_*reduced*.parquet", 
+        "gpu_features.parquet",
+        "fast_cpu_features.parquet",
+        "*.parquet"
+    ]
+    
+    feature_file = None
+    for pattern in feature_patterns:
+        feature_files = glob.glob(os.path.join(features_dir, pattern))
+        if feature_files:
+            # Get the most recent file
+            feature_file = max(feature_files, key=os.path.getmtime)
+            break
+    
+    if not feature_file or not os.path.exists(feature_file):
+        logger.error(f"No suitable feature file found in {features_dir}")
+        logger.info("Available files:")
+        for f in glob.glob(os.path.join(features_dir, "*.parquet")):
+            logger.info(f"  {f}")
         return None, None
     
-    logger.info(f"Loading data from {GPU_FEATURES_FILE}")
-    df = pl.read_parquet(GPU_FEATURES_FILE)
+    logger.info(f"Loading data from {feature_file}")
+    try:
+        df = pl.read_parquet(feature_file)
+    except Exception as e:
+        logger.error(f"Error loading feature file {feature_file}: {e}")
+        return None, None
     logger.info(f"Loaded data with shape {df.shape}")
     
     # Prepare features and target
@@ -99,11 +135,11 @@ def load_and_prepare_data():
         return None, None
     
     # Get numeric columns and exclude non-feature columns
-    excluded_cols = ['target', 'Symbol', 'symbol', 'Prediction', 'prediction', 'date', 'era', 'id', 'asset']
+    excluded_cols = ['target', 'Symbol', 'symbol', 'Prediction', 'prediction', 'date', 'era', 'id', 'asset', '__index_level_0__']
     
     numeric_cols = []
     for col in df.columns:
-        if col not in excluded_cols and df[col].dtype in [pl.Float32, pl.Float64, pl.Int32, pl.Int64]:
+        if col not in excluded_cols and df[col].dtype in [pl.Float32, pl.Float64, pl.Int32, pl.Int64, pl.Int16, pl.Int8, pl.UInt32, pl.UInt16, pl.UInt8]:
             numeric_cols.append(col)
     
     if not numeric_cols:
@@ -151,7 +187,23 @@ def train_pytorch_worker(gpu_id, X_train, y_train, model_name, output_dir):
     # Set GPU for this worker
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     
-    logger.info(f"Worker {gpu_id} training PyTorch model: {model_name}")
+    # Set memory limit
+    # Get memory limit from environment or use default
+    memory_limit_gb = int(os.environ.get("GPU_MEMORY_LIMIT", "24"))
+    reserved_memory_bytes = int(memory_limit_gb * 0.9 * 1024 * 1024 * 1024)  # 90% of memory limit in bytes
+    
+    # Configure PyTorch to limit memory usage
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.set_per_process_memory_fraction(0.9)  # Use 90% of available memory
+            
+            # Set other memory-saving settings
+            os.environ["PYTORCH_CUDA_ALLOC_CONF"] = f"max_split_size_mb:512"
+    except:
+        pass
+    
+    logger.info(f"Worker {gpu_id} training PyTorch model: {model_name} with memory limit {memory_limit_gb}GB")
     
     try:
         from sklearn.model_selection import train_test_split
@@ -278,7 +330,13 @@ def train_catboost_worker(gpu_id, X_train, y_train, model_name, output_dir):
     if venv_path not in sys.path:
         sys.path.insert(0, venv_path)
     
-    logger.info(f"Worker {gpu_id} training CatBoost model: {model_name}")
+    # Get memory limit from environment or use default
+    memory_limit_gb = int(os.environ.get("GPU_MEMORY_LIMIT", "24"))
+    
+    # CatBoost will use memory percentage based on this value
+    gpu_ram_part = 0.9  # Use 90% of available memory
+    
+    logger.info(f"Worker {gpu_id} training CatBoost model: {model_name} with memory limit {memory_limit_gb}GB")
     
     try:
         # Ensure we can import CatBoost
@@ -301,36 +359,44 @@ def train_catboost_worker(gpu_id, X_train, y_train, model_name, output_dir):
             X_train, y_train, test_size=0.2, random_state=42 + gpu_id
         )
         
-        # GPU-optimized parameters with variation per GPU
+        # GPU-optimized parameters with variation per GPU for best results
         base_params = {
             'task_type': 'GPU',
-            'gpu_ram_part': 0.8,
+            'gpu_ram_part': gpu_ram_part,  # Use specified percentage of GPU memory
             'random_seed': 42 + gpu_id,
             'verbose': False,
-            'allow_writing_files': False
+            'allow_writing_files': False,
+            'boosting_type': 'Ordered',  # More accurate boosting type
+            'bootstrap_type': 'Bayesian',  # Better regularization
+            'early_stopping_rounds': 50  # Faster early stopping
         }
         
-        # Vary parameters by GPU
+        # Vary parameters by GPU for best prediction quality
         if gpu_id == 0:
             base_params.update({
-                'iterations': 1000,
-                'depth': 6,
-                'learning_rate': 0.1,
-                'l2_leaf_reg': 3
+                'iterations': 2000,  # More iterations for better convergence
+                'depth': 8,          # Deeper trees for better signal capture
+                'learning_rate': 0.03,  # Slower learning rate for better generalization
+                'l2_leaf_reg': 2,    # Less regularization for stronger patterns
+                'leaf_estimation_iterations': 10  # More accurate leaf values
             })
         elif gpu_id == 1:
             base_params.update({
                 'iterations': 1500,
-                'depth': 8,
+                'depth': 10,         # Even deeper trees
                 'learning_rate': 0.05,
-                'l2_leaf_reg': 5
+                'l2_leaf_reg': 3,
+                'rsm': 0.8,          # Random subspace method for better generalization
+                'leaf_estimation_method': 'Newton'  # More accurate leaf estimation
             })
         else:  # gpu_id == 2
             base_params.update({
-                'iterations': 1200,
-                'depth': 4,
+                'iterations': 1000,  # Faster model
+                'depth': 6,
                 'learning_rate': 0.08,
-                'l2_leaf_reg': 7
+                'l2_leaf_reg': 4,
+                'one_hot_max_size': 100,  # Better handling of categorical features
+                'grow_policy': 'Lossguide'  # Different tree growth policy
             })
         
         logger.info(f"GPU {gpu_id} using device: {os.environ.get('CUDA_VISIBLE_DEVICES')}")
@@ -398,12 +464,34 @@ def main():
                        help='Output directory for models')
     parser.add_argument('--force-retrain', action='store_true', 
                        help='Force model retraining even if models exist from today')
+    parser.add_argument('--use-azure-synapse', action='store_true', default=True,
+                       help='Use Azure Synapse LightGBM variant (enabled by default)')
+    parser.add_argument('--parallel-jobs', type=int, default=None, 
+                       help='Number of parallel training jobs (defaults to number of GPUs)')
     
     args = parser.parse_args()
     
     # Parse GPU IDs
     gpu_ids = [int(x.strip()) for x in args.gpus.split(',')]
     logger.info(f"Using GPUs: {gpu_ids}")
+    
+    # Set number of parallel jobs
+    max_workers = args.parallel_jobs if args.parallel_jobs is not None else len(gpu_ids)
+    logger.info(f"Using {max_workers} parallel training jobs")
+    
+    # Configure Azure Synapse LightGBM (already set at module level)
+    if args.use_azure_synapse:
+        logger.info("Using Azure Synapse LightGBM for maximum performance")
+        os.environ["USE_AZURE_SYNAPSE_LIGHTGBM"] = "1"
+        os.environ["LIGHTGBM_SYNAPSE_MODE"] = "1"
+        os.environ["LIGHTGBM_USE_SYNAPSE"] = "1"
+        
+    # Get GPU memory limit from environment variable
+    gpu_memory_limit = int(os.environ.get("GPU_MEMORY_LIMIT", "24"))
+    logger.info(f"Using GPU memory limit: {gpu_memory_limit}GB")
+    
+    # Set environment variable for workers
+    os.environ["GPU_MEMORY_LIMIT"] = str(gpu_memory_limit)
     
     # Check if models already exist from today (unless force-retrain is specified)
     if not args.force_retrain:
@@ -429,14 +517,14 @@ def main():
     
     all_results = []
     
-    # Import original workers from the main script
+    # Import workers from train_models_multi_gpu (using the updated Synapse-enabled version)
     from train_models_multi_gpu import train_lightgbm_worker, train_xgboost_worker
     
     # Train models based on type
     if args.model_type in ['lightgbm', 'all']:
         logger.info("Starting multi-GPU LightGBM training...")
         
-        with ProcessPoolExecutor(max_workers=len(gpu_ids)) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for gpu_id in gpu_ids:
                 future = executor.submit(
@@ -453,7 +541,7 @@ def main():
     if args.model_type in ['xgboost', 'all']:
         logger.info("Starting multi-GPU XGBoost training...")
         
-        with ProcessPoolExecutor(max_workers=len(gpu_ids)) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for gpu_id in gpu_ids:
                 future = executor.submit(
@@ -470,7 +558,7 @@ def main():
     if args.model_type in ['catboost', 'all']:
         logger.info("Starting multi-GPU CatBoost training...")
         
-        with ProcessPoolExecutor(max_workers=len(gpu_ids)) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for gpu_id in gpu_ids:
                 future = executor.submit(
@@ -487,7 +575,7 @@ def main():
     if args.model_type in ['pytorch', 'all']:
         logger.info("Starting multi-GPU PyTorch training...")
         
-        with ProcessPoolExecutor(max_workers=len(gpu_ids)) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for gpu_id in gpu_ids:
                 future = executor.submit(

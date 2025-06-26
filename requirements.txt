@@ -44,7 +44,7 @@ GPUtil>=1.4.0                # GPU utility library
 statsmodels>=0.14.0          # Statistical models for time series
 
 # Visualization
-matplotlib>=3.8.0            # For visualization
+matplotlib>=3.7.5            # For visualization (REQUIRED)
 seaborn>=0.13.0              # Statistical data visualization
 graphviz>=0.20.1             # For DAG visualization
 

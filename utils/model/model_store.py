@@ -11,8 +11,15 @@ import os
 import json
 import pickle
 import logging
+import sys
+import importlib
+import importlib.util
 from pathlib import Path
 from datetime import datetime
+import torch
+
+# Configure for better PyTorch model loading
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -46,6 +53,9 @@ class ModelStore:
     
     def _save_registry(self):
         """Save model registry to file"""
+        # Import os at function level to ensure availability
+        import os
+        
         os.makedirs(self.base_dir, exist_ok=True)
         with open(self.registry_file, 'w') as f:
             json.dump(self.registry, f, indent=2)
@@ -66,6 +76,9 @@ class ModelStore:
         Returns:
             str: Model ID
         """
+        # Import os at function level to ensure availability
+        import os
+        
         model_id = f"{model_type}_v{version}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         model_entry = {
@@ -166,6 +179,9 @@ class ModelStore:
         Raises:
             FileNotFoundError: If model file does not exist
         """
+        # Import os at function level to ensure availability
+        import os
+        
         # Get model entry
         if model_id:
             model_entry = self.get_model_by_id(model_id)
@@ -217,6 +233,107 @@ class ModelStore:
                 except Exception as h2o_error:
                     logger.error(f"Error loading H2O model from {model_path}: {h2o_error}")
                     return None, model_entry
+            elif "pytorch" in model_type:
+                # Load PyTorch model using special handler
+                try:
+                    # Import PyTorch utilities
+                    from utils.model.pytorch_utils import load_pytorch_model
+                    
+                    # Load model with the specialized function
+                    model, metadata = load_pytorch_model(model_path)
+                    if model is not None:
+                        logger.info(f"Successfully loaded PyTorch model from {model_path}")
+                        # Merge metadata from model_entry and metadata from loader
+                        model_entry.update(metadata)
+                        return model, model_entry
+                    else:
+                        logger.error(f"Failed to load PyTorch model from {model_path}")
+                        return None, model_entry
+                except ImportError:
+                    logger.error("PyTorch utilities not available, falling back to standard loading")
+                    # Fall back to standard loading
+                    with open(model_path, 'rb') as f:
+                        model = pickle.load(f)
+                    return model, model_entry
+                except Exception as torch_error:
+                    logger.error(f"Error loading PyTorch model from {model_path}: {torch_error}")
+                    return None, model_entry
+            elif "pytorch" in model_type.lower() or model_path.endswith('.pt') or "neural" in model_type.lower():
+                # PyTorch model loading with error handling
+                try:
+                    # First, try to import and define the model class if needed
+                    # This is critical for pickle-based loading to work
+                    try:
+                        # Define the model class in the main module for pickle to find
+                        if 'SimpleNeuralNet' not in sys.modules.get('__main__', {}).__dict__:
+                            class SimpleNeuralNet(torch.nn.Module):
+                                """Simple feedforward neural network for regression"""
+                                def __init__(self, input_size=500, hidden_sizes=[512, 256, 128], dropout_rate=0.3):
+                                    super(SimpleNeuralNet, self).__init__()
+                                    
+                                    layers = []
+                                    prev_size = input_size
+                                    
+                                    for hidden_size in hidden_sizes:
+                                        layers.extend([
+                                            torch.nn.Linear(prev_size, hidden_size),
+                                            torch.nn.ReLU(),
+                                            torch.nn.BatchNorm1d(hidden_size),
+                                            torch.nn.Dropout(dropout_rate)
+                                        ])
+                                        prev_size = hidden_size
+                                    
+                                    # Output layer
+                                    layers.append(torch.nn.Linear(prev_size, 1))
+                                    
+                                    self.network = torch.nn.Sequential(*layers)
+                                
+                                def forward(self, x):
+                                    return self.network(x).squeeze()
+                            
+                            # Set the class in the main module
+                            sys.modules['__main__'].SimpleNeuralNet = SimpleNeuralNet
+                            logger.info(f"Registered SimpleNeuralNet class for PyTorch model loading")
+                    except Exception as class_error:
+                        logger.warning(f"Could not register model class: {class_error}")
+                    
+                    # Try loading the model with torch.load first
+                    try:
+                        model_data = torch.load(model_path, map_location='cpu')
+                        
+                        # Handle different saved formats
+                        if isinstance(model_data, dict) and 'model' in model_data:
+                            model = model_data['model']
+                            # Update model entry with additional metadata
+                            if 'scaler' in model_data:
+                                model_entry['scaler'] = model_data['scaler']
+                        elif isinstance(model_data, dict) and 'model_state_dict' in model_data:
+                            # Need to reconstruct model from state dict
+                            if 'SimpleNeuralNet' in sys.modules['__main__'].__dict__:
+                                input_size = model_data.get('input_size', 500)  # Default if not specified
+                                model = SimpleNeuralNet(input_size)
+                                model.load_state_dict(model_data['model_state_dict'])
+                                if 'scaler' in model_data:
+                                    model_entry['scaler'] = model_data['scaler']
+                            else:
+                                raise ValueError("Model class not available to load state dict")
+                        else:
+                            # Assume model_data is the model itself
+                            model = model_data
+                        
+                        logger.info(f"Successfully loaded PyTorch model from {model_path}")
+                        return model, model_entry
+                        
+                    except Exception as torch_error:
+                        logger.warning(f"Torch load failed, trying pickle: {torch_error}")
+                        # Fall back to pickle loading
+                        with open(model_path, 'rb') as f:
+                            model = pickle.load(f)
+                        return model, model_entry
+                        
+                except Exception as e:
+                    logger.error(f"All PyTorch load attempts failed: {e}")
+                    return None, model_entry
             else:
                 # Standard pickle loading for other models
                 with open(model_path, 'rb') as f:
@@ -242,6 +359,9 @@ class ModelStore:
         Returns:
             bool: Whether update was successful
         """
+        # Import os at function level to ensure availability
+        import os
+        
         model_entry = self.get_model_by_id(model_id)
         
         if not model_entry:
@@ -274,6 +394,9 @@ class ModelStore:
         Returns:
             str: Path to metadata file
         """
+        # Import os at function level to ensure availability
+        import os
+        
         metadata = {
             "model_type": model_type,
             "version": version,
