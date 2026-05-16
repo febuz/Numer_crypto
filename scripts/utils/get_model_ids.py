@@ -51,8 +51,8 @@ def get_crypto_models(public_id, secret_key):
 
 def main():
     # Get API credentials from environment or default
-    public_id = os.environ.get('NUMERAI_PUBLIC_ID', "ZYUPMDSALDNBEA67XOUJZIV7UVBY4DHG")
-    secret_key = os.environ.get('NUMERAI_SECRET_KEY', "LY6ZWGL7JOEYB3WGU5MSVT3URX5P6BRQJVQWLME46KSDRG4PRIZD6Z44FM6HT3WY")
+    public_id = os.environ.get('NUMERAI_PUBLIC_ID', "DH")
+    secret_key = os.environ.get('NUMERAI_SECRET_KEY', "YL")
     
     # Get crypto models
     models = get_crypto_models(public_id, secret_key)
