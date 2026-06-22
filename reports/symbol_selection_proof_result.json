@@ -1,0 +1,322 @@
+{
+  "baseline_rmse": 0.3771072932125512,
+  "n_eras": 525,
+  "proof_results": [
+    {
+      "family": "size_rank",
+      "aug_rmse": 0.37696949918824185,
+      "shuf_rmse": 0.37689578969624626,
+      "delta_vs_base": -0.00013779402430935672,
+      "delta_vs_shuf": 7.37094919955883e-05,
+      "nw_t": -0.592031157882405,
+      "p_val": 0.5540850751612103,
+      "significant": false,
+      "cols": [
+        "derived_size_rank_vg_20d",
+        "derived_size_rank_wa_20d"
+      ]
+    },
+    {
+      "family": "btc_relative",
+      "aug_rmse": 0.37783837147389204,
+      "shuf_rmse": 0.37777323099871585,
+      "delta_vs_base": 0.000731078261340834,
+      "delta_vs_shuf": 6.514047517619526e-05,
+      "nw_t": -0.19423737847701134,
+      "p_val": 0.8460652940078097,
+      "significant": false,
+      "cols": [
+        "derived_btc_rel_momentum_20d",
+        "derived_btc_rel_momentum_60d",
+        "derived_btc_rel_volume_ewa_20d"
+      ]
+    },
+    {
+      "family": "momentum_cross",
+      "aug_rmse": 0.3769581888791257,
+      "shuf_rmse": 0.3768663361133525,
+      "delta_vs_base": -0.00014910433342552043,
+      "delta_vs_shuf": 9.185276577317047e-05,
+      "nw_t": -0.4081220421990374,
+      "p_val": 0.6833507873241449,
+      "significant": false,
+      "cols": [
+        "derived_mom_x_vol_20d",
+        "derived_mom_x_vol_60d"
+      ]
+    },
+    {
+      "family": "trend_confirm",
+      "aug_rmse": 0.3765644053249362,
+      "shuf_rmse": 0.37689331583549585,
+      "delta_vs_base": -0.0005428878876150289,
+      "delta_vs_shuf": -0.0003289105105596657,
+      "nw_t": 1.3595752649679278,
+      "p_val": 0.17454911466928213,
+      "significant": false,
+      "cols": [
+        "derived_trend_confirm_20d",
+        "derived_trend_confirm_60d"
+      ]
+    },
+    {
+      "family": "vol_to_cap",
+      "aug_rmse": 0.3772645072409716,
+      "shuf_rmse": 0.37668329753754,
+      "delta_vs_base": 0.00015721402842039378,
+      "delta_vs_shuf": 0.0005812097034316177,
+      "nw_t": -2.3710186974467375,
+      "p_val": 0.018099850725300775,
+      "significant": false,
+      "cols": [
+        "derived_vol_to_cap_20d",
+        "derived_vol_to_cap_60d"
+      ]
+    }
+  ],
+  "new_above_random": [],
+  "live_good": [
+    {
+      "symbol": "QQQX",
+      "signal": 0.9983333333333333
+    },
+    {
+      "symbol": "TRX",
+      "signal": 0.995
+    },
+    {
+      "symbol": "XAUt",
+      "signal": 0.9916666666666667
+    },
+    {
+      "symbol": "SUN",
+      "signal": 0.9883333333333333
+    },
+    {
+      "symbol": "DOGE",
+      "signal": 0.985
+    },
+    {
+      "symbol": "XRP",
+      "signal": 0.9816666666666667
+    },
+    {
+      "symbol": "AZNX",
+      "signal": 0.9783333333333334
+    },
+    {
+      "symbol": "WIBE",
+      "signal": 0.975
+    },
+    {
+      "symbol": "HTX",
+      "signal": 0.9716666666666667
+    },
+    {
+      "symbol": "HONX",
+      "signal": 0.9683333333333334
+    },
+    {
+      "symbol": "GT",
+      "signal": 0.965
+    },
+    {
+      "symbol": "BNB",
+      "signal": 0.9616666666666667
+    },
+    {
+      "symbol": "ETH",
+      "signal": 0.9583333333333334
+    },
+    {
+      "symbol": "XMR",
+      "signal": 0.955
+    },
+    {
+      "symbol": "LBT",
+      "signal": 0.9516666666666667
+    },
+    {
+      "symbol": "BTC",
+      "signal": 0.9483333333333334
+    },
+    {
+      "symbol": "SOL",
+      "signal": 0.945
+    },
+    {
+      "symbol": "LEO",
+      "signal": 0.9416666666666667
+    },
+    {
+      "symbol": "NEXO",
+      "signal": 0.9383333333333334
+    },
+    {
+      "symbol": "METAX",
+      "signal": 0.935
+    },
+    {
+      "symbol": "SHIB",
+      "signal": 0.9316666666666666
+    },
+    {
+      "symbol": "WFI",
+      "signal": 0.9283333333333333
+    },
+    {
+      "symbol": "BGB",
+      "signal": 0.925
+    },
+    {
+      "symbol": "LTC",
+      "signal": 0.9216666666666666
+    },
+    {
+      "symbol": "GNO",
+      "signal": 0.9183333333333333
+    },
+    {
+      "symbol": "CRO",
+      "signal": 0.915
+    },
+    {
+      "symbol": "SKY",
+      "signal": 0.9116666666666666
+    },
+    {
+      "symbol": "TSLAX",
+      "signal": 0.9083333333333333
+    },
+    {
+      "symbol": "NFT",
+      "signal": 0.905
+    },
+    {
+      "symbol": "AAPLX",
+      "signal": 0.9016666666666666
+    }
+  ],
+  "live_bad": [
+    {
+      "symbol": "ALLO",
+      "signal": 0.0016666666666666668
+    },
+    {
+      "symbol": "AGT",
+      "signal": 0.005
+    },
+    {
+      "symbol": "ASTEROID",
+      "signal": 0.008333333333333333
+    },
+    {
+      "symbol": "PURR",
+      "signal": 0.011666666666666667
+    },
+    {
+      "symbol": "BILL",
+      "signal": 0.015
+    },
+    {
+      "symbol": "UP",
+      "signal": 0.018333333333333333
+    },
+    {
+      "symbol": "BEAT",
+      "signal": 0.021666666666666667
+    },
+    {
+      "symbol": "DRV",
+      "signal": 0.025
+    },
+    {
+      "symbol": "COAI",
+      "signal": 0.028333333333333332
+    },
+    {
+      "symbol": "USELESS",
+      "signal": 0.03166666666666667
+    },
+    {
+      "symbol": "JCT",
+      "signal": 0.035
+    },
+    {
+      "symbol": "LAB",
+      "signal": 0.03833333333333333
+    },
+    {
+      "symbol": "RIF",
+      "signal": 0.041666666666666664
+    },
+    {
+      "symbol": "UDS",
+      "signal": 0.045
+    },
+    {
+      "symbol": "LIT",
+      "signal": 0.04833333333333333
+    },
+    {
+      "symbol": "TROLL",
+      "signal": 0.051666666666666666
+    },
+    {
+      "symbol": "UAI",
+      "signal": 0.055
+    },
+    {
+      "symbol": "GENIUS",
+      "signal": 0.058333333333333334
+    },
+    {
+      "symbol": "MAGMA",
+      "signal": 0.06166666666666667
+    },
+    {
+      "symbol": "MEGA",
+      "signal": 0.065
+    },
+    {
+      "symbol": "VVV",
+      "signal": 0.06833333333333333
+    },
+    {
+      "symbol": "BAS",
+      "signal": 0.07166666666666667
+    },
+    {
+      "symbol": "NOCK",
+      "signal": 0.075
+    },
+    {
+      "symbol": "GCOIN",
+      "signal": 0.07833333333333334
+    },
+    {
+      "symbol": "ARC",
+      "signal": 0.08166666666666667
+    },
+    {
+      "symbol": "SKYAI",
+      "signal": 0.085
+    },
+    {
+      "symbol": "IO",
+      "signal": 0.08833333333333333
+    },
+    {
+      "symbol": "KNTQ",
+      "signal": 0.09166666666666666
+    },
+    {
+      "symbol": "HOME",
+      "signal": 0.095
+    },
+    {
+      "symbol": "BTW",
+      "signal": 0.09833333333333333
+    }
+  ]
+}
